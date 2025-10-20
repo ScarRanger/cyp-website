@@ -1,12 +1,11 @@
 import Image from "next/image";
-import Carousel from "./components/Carousel";
-import WhoWeAre from "./components/WhoWeAre";
+
+import HomePage from "./components/HomePage";
 
 export default function Home() {
   return (
     <div>
-      <Carousel />
-      <WhoWeAre />
+      <HomePage />
     </div>
   );
 }
