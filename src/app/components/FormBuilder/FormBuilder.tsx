@@ -163,8 +163,8 @@ export default function FormBuilder() {
                   value={form.description || ''}
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500"
-                  rows={3}
-                  placeholder="Enter form description"
+                  rows={4}
+                  placeholder="Enter form description (use Enter for line breaks)"
                 />
               </div>
 
@@ -250,7 +250,7 @@ export default function FormBuilder() {
                       onClick={() => setSelectedFieldId(field.id)}
                       className="flex-1 cursor-pointer"
                     >
-                      <p className="font-medium text-sm">{field.label}</p>
+                      <p className="font-medium text-sm text-gray-900">{field.label}</p>
                       <p className="text-xs text-gray-500 capitalize">{field.type}</p>
                     </div>
                     <div className="flex items-center space-x-2">

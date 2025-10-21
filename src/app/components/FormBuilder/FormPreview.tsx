@@ -133,9 +133,9 @@ export default function FormPreview({ form }: FormPreviewProps) {
     <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">{form.title}</h2>
-        {form.description && (
-          <p className="text-gray-600">{form.description}</p>
-        )}
+          {form.description && (
+            <div className="text-gray-600 whitespace-pre-line">{form.description}</div>
+          )}
         {form.imageUrl && (
           <div className="mt-4">
             <img

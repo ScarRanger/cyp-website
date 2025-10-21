@@ -94,7 +94,7 @@ export default function FieldEditor({ field, onUpdate, onDelete }: FieldEditorPr
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">Field Editor</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Field Editor</h3>
         <button
           onClick={onDelete}
           className="text-red-500 hover:text-red-700 p-1"

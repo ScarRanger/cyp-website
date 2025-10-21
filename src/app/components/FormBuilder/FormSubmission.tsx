@@ -258,7 +258,7 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">{form.title}</h1>
           {form.description && (
-            <p className="text-gray-600">{form.description}</p>
+            <div className="text-gray-600 whitespace-pre-line">{form.description}</div>
           )}
           {form.imageUrl && (
             <div className="mt-4">
