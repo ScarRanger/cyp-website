@@ -42,7 +42,7 @@ export default function AdminPage() {
                   <Settings className="h-5 w-5 text-gray-600 mr-2" />
                   <h2 className="text-lg font-semibold text-gray-900">Manage Admins</h2>
                 </div>
-                <p className="text-gray-600">Add or remove administrator accounts (owner cannot be removed).</p>
+                <p className="text-gray-600">Add or remove administrator accounts.</p>
               </div>
             </Link>
           </div>

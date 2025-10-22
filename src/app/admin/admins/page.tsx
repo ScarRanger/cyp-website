@@ -109,7 +109,7 @@ export default function AdminsManagementPage() {
               <li key="owner" className="flex items-center justify-between p-3 border rounded">
                 <div>
                   <div className="font-medium text-gray-900">{OWNER_EMAIL}</div>
-                  <div className="text-xs text-gray-600">Owner</div>
+                  {/* <div className="text-xs text-gray-600">Owner</div> */}
                 </div>
               </li>
 
@@ -121,7 +121,7 @@ export default function AdminsManagementPage() {
                 <li key={admin.id} className="flex items-center justify-between p-3 border rounded">
                   <div>
                     <div className="font-medium text-gray-900">{admin.email}</div>
-                    <div className="text-xs text-gray-600">Admin</div>
+                    {/* <div className="text-xs text-gray-600">Admin</div> */}
                   </div>
                   <div>
                     <button

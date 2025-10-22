@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FormLayout } from '@/app/types/form';
 import { useForm } from 'react-hook-form';
 
@@ -16,7 +16,9 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>();
+  const { register, handleSubmit, formState: { errors, isValid, isDirty }, reset, getValues, setValue, trigger } = useForm<FormData>({ mode: 'onChange' });
+  const formKey = `form_draft_${form.id}`;
+  const firstErrorRef = useRef<HTMLElement | null>(null);
 
   const linkify = (text: string) => {
     const splitRegex = /(https?:\/\/[^\s]+)/g; // for splitting only
@@ -92,6 +94,8 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
       if (result.success) {
         setSubmitStatus('success');
         reset();
+        // clear draft
+        try { localStorage.removeItem(formKey); } catch {}
       } else {
         throw new Error(result.error || 'Failed to submit form');
       }
@@ -102,6 +106,58 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
       setIsSubmitting(false);
     }
   };
+
+  // Autosave draft to localStorage every few seconds and when values change
+  useEffect(() => {
+    // load draft if exists
+    try {
+      const raw = localStorage.getItem(formKey);
+      if (raw) {
+        const values = JSON.parse(raw);
+        Object.entries(values).forEach(([k, v]) => setValue(k, v));
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    const saveDraft = () => {
+      try {
+        const vals = getValues();
+        localStorage.setItem(formKey, JSON.stringify(vals));
+      } catch (err) {}
+    };
+
+    const interval = setInterval(saveDraft, 5000);
+    return () => clearInterval(interval);
+  }, [formKey, getValues, setValue]);
+
+  // Warn before unload if form is dirty
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      try {
+        const vals = getValues();
+        const hasData = Object.keys(vals).some(k => {
+          const v = (vals as any)[k];
+          return v !== undefined && v !== '' && !(v instanceof FileList && v.length === 0);
+        });
+        if (hasData) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      } catch (err) {}
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [getValues]);
+
+  // Focus first error when errors change
+  useEffect(() => {
+    const keys = Object.keys(errors);
+    if (keys.length > 0) {
+      const el = document.querySelector(`[name="${keys[0]}"]`) as HTMLElement | null;
+      if (el && typeof el.focus === 'function') el.focus();
+    }
+  }, [errors]);
 
   const renderField = (field: any) => {
     const baseClasses = "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500";
@@ -319,7 +375,7 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
           <div className="pt-4">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isValid}
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Submitting...' : 'Submit Form'}
