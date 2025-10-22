@@ -36,13 +36,15 @@ export default function AdminPage() {
               </div>
             </Link>
 
-            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm h-full">
-              <div className="flex items-center mb-4">
-                <Settings className="h-5 w-5 text-gray-600 mr-2" />
-                <h2 className="text-lg font-semibold text-gray-900">Settings</h2>
+            <Link href="/admin/admins" className="block">
+              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm h-full">
+                <div className="flex items-center mb-4">
+                  <Settings className="h-5 w-5 text-gray-600 mr-2" />
+                  <h2 className="text-lg font-semibold text-gray-900">Manage Admins</h2>
+                </div>
+                <p className="text-gray-600">Add or remove administrator accounts (owner cannot be removed).</p>
               </div>
-              <p className="text-gray-600">Additional admin settings can go here.</p>
-            </div>
+            </Link>
           </div>
         </div>
       </div>

@@ -3,14 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { auth } from '@/app/lib/firebase';
+import { auth, db } from '@/app/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
-// Hardcoded allowed emails
-const ALLOWED_EMAILS = [
-  'rhine.pereira@gmail.com', // Replace with your actual email
-  'admin@cyp.com',
-   // Add more admin emails as needed
-];
+// Owner email is hardcoded and always authorized. Do NOT allow this account to be removed via the UI.
+const OWNER_EMAIL = 'rhine.pereira@gmail.com';
+const ADMIN_COLLECTION = 'cyp_admins';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -25,21 +23,39 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
-      
-      if (user) {
-        const isAllowed = ALLOWED_EMAILS.includes(user.email || '');
-        setIsAuthorized(isAllowed);
-        
-        if (!isAllowed) {
-          // Sign out unauthorized users
-          signOut(auth);
-          setUser(null);
-        }
-      } else {
+
+      // if no user, not authorized
+      if (!user) {
         setIsAuthorized(false);
+        setLoading(false);
+        return;
       }
-      
-      setLoading(false);
+
+      // Async check against Firestore admins collection (owner bypasses this)
+      (async () => {
+        try {
+          if ((user.email || '').toLowerCase() === OWNER_EMAIL.toLowerCase()) {
+            setIsAuthorized(true);
+          } else {
+            const q = query(collection(db, ADMIN_COLLECTION), where('email', '==', user.email));
+            const snap = await getDocs(q);
+            const isAdmin = !snap.empty;
+            setIsAuthorized(isAdmin);
+
+            if (!isAdmin) {
+              // Sign out unauthorized users
+              await signOut(auth);
+              setUser(null);
+            }
+          }
+        } catch (err) {
+          console.error('Error checking admin status:', err);
+          setIsAuthorized(false);
+          setUser(null);
+        } finally {
+          setLoading(false);
+        }
+      })();
     });
 
     return () => unsubscribe();
