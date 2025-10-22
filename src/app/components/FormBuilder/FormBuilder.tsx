@@ -5,8 +5,10 @@ import { FormLayout, FormField } from '@/app/types/form';
 import FieldEditor from './FieldEditor';
 import FormPreview from './FormPreview';
 import { Plus, Save, Eye, EyeOff, Upload, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function FormBuilder() {
+  const router = useRouter();
   const [form, setForm] = useState<FormLayout>({
     id: '',
     title: 'New Form',
@@ -116,6 +118,21 @@ export default function FormBuilder() {
       if (result.success) {
         setForm(prev => ({ ...prev, id: result.formId }));
         alert(`Form saved successfully!\n\nForm ID: ${result.formId}\nSpreadsheet: ${result.spreadsheetUrl}`);
+
+        // Reset builder state
+        setForm({
+          id: '',
+          title: 'New Form',
+          description: '',
+          fields: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        setImageFile(null);
+        setImagePreview(null);
+
+        // Redirect to Manage Forms
+        router.push('/admin/forms');
       } else {
         throw new Error(result.error || 'Failed to save form');
       }
@@ -172,13 +189,16 @@ export default function FormBuilder() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Form Header Image
                 </label>
+                <p className="text-xs text-gray-500 mb-2">Recommended aspect ratio: 4:1</p>
                 {imagePreview ? (
                   <div className="relative">
-                    <img
-                      src={imagePreview}
-                      alt="Form header"
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
+                    <div className="relative w-full pb-[25%] rounded-lg overflow-hidden">
+                      <img
+                        src={imagePreview}
+                        alt="Form header"
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                    </div>
                     <button
                       onClick={removeImage}
                       className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"

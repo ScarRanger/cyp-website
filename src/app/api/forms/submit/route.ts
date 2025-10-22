@@ -16,6 +16,13 @@ export async function POST(request: NextRequest) {
     }
     
     const form = formDoc.data() as any;
+    // Respect acceptingResponses flag; if undefined, treat as accepting
+    if (form.acceptingResponses === false) {
+      return NextResponse.json(
+        { success: false, error: 'This form is no longer accepting responses.' },
+        { status: 403 }
+      );
+    }
     
     // Save submission to Firestore
     const submissionId = `submission_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -35,7 +42,8 @@ export async function POST(request: NextRequest) {
       const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
       
       const rowData = [
-        ...form.fields.map((field: any) => {
+        // Exclude 'admin-image' fields from being added to the sheet
+        ...form.fields.filter((field: any) => field.type !== 'admin-image').map((field: any) => {
           const value = data[field.id];
           if (Array.isArray(value)) {
             return value.join(', ');
@@ -53,7 +61,7 @@ export async function POST(request: NextRequest) {
       await sheets.spreadsheets.values.append({
         spreadsheetId: form.spreadsheetId,
         range: 'A:Z',
-        valueInputOption: 'RAW',
+        valueInputOption: 'USER_ENTERED',
         // Ensure new submissions insert rows instead of overwriting existing rows
         insertDataOption: 'INSERT_ROWS',
         requestBody: {

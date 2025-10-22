@@ -24,6 +24,7 @@ export interface FormLayout {
   createdAt: Date;
   updatedAt: Date;
   spreadsheetId?: string;
+  acceptingResponses?: boolean;
 }
 
 export interface FormSubmission {

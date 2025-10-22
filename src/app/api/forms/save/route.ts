@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
     // Create the form document in Firestore
     const formDoc = {
       ...formData,
+      acceptingResponses: true,
       id: formId,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -35,7 +36,14 @@ export async function POST(request: NextRequest) {
     await setSpreadsheetPermissions(spreadsheetId, ADMIN_EMAIL);
     
     // Prepare headers for the spreadsheet (form fields first, then metadata)
-    const headers = [...formData.fields.map(field => field.label), 'Timestamp', 'IP Address'];
+    // Exclude 'admin-image' fields from headers so they don't create columns
+    const headers = [
+      ...formData.fields
+        .filter(field => field.type !== 'admin-image')
+        .map(field => field.label),
+      'Timestamp',
+      'IP Address'
+    ];
     
     // Add headers to the spreadsheet
     await addHeaders(spreadsheetId, headers);

@@ -8,6 +8,24 @@ interface FormPreviewProps {
 }
 
 export default function FormPreview({ form }: FormPreviewProps) {
+  const linkify = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    return (
+      <div className="text-gray-600 whitespace-pre-line">
+        {parts.map((part, idx) => {
+          if (urlRegex.test(part)) {
+            return (
+              <a key={idx} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-words">
+                {part}
+              </a>
+            );
+          }
+          return <span key={idx}>{part}</span>;
+        })}
+      </div>
+    );
+  };
   const renderField = (field: FormField) => {
     const baseClasses = "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500";
     
@@ -131,20 +149,21 @@ export default function FormPreview({ form }: FormPreviewProps) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{form.title}</h2>
-          {form.description && (
-            <div className="text-gray-600 whitespace-pre-line">{form.description}</div>
-          )}
-        {form.imageUrl && (
-          <div className="mt-4">
+      {/* Header image on top */}
+      {form.imageUrl && (
+        <div className="mb-4">
+          <div className="relative w-full pb-[25%] rounded-lg overflow-hidden">
             <img
               src={form.imageUrl}
               alt="Form header"
-              className="w-full h-48 object-cover rounded-lg"
+              className="absolute inset-0 w-full h-full object-cover"
             />
           </div>
-        )}
+        </div>
+      )}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">{form.title}</h2>
+        {form.description && linkify(form.description)}
       </div>
 
       <form className="space-y-6">

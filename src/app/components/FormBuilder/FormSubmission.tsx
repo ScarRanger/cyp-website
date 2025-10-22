@@ -18,6 +18,26 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
   
   const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>();
 
+  const linkify = (text: string) => {
+    const splitRegex = /(https?:\/\/[^\s]+)/g; // for splitting only
+    const parts = text.split(splitRegex);
+    return (
+      <div className="text-gray-600 whitespace-pre-line">
+        {parts.map((part, idx) => {
+          const isUrl = /^https?:\/\/\S+$/i.test(part);
+          if (isUrl) {
+            return (
+              <a key={idx} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-words">
+                {part}
+              </a>
+            );
+          }
+          return <span key={idx}>{part}</span>;
+        })}
+      </div>
+    );
+  };
+
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     setSubmitStatus('idle');
@@ -255,22 +275,27 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
   return (
     <div className="max-w-2xl mx-auto p-6">
       <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{form.title}</h1>
-          {form.description && (
-            <div className="text-gray-600 whitespace-pre-line">{form.description}</div>
-          )}
-          {form.imageUrl && (
-            <div className="mt-4">
+        {/* Header image on top */}
+        {form.imageUrl && (
+          <div className="mb-4">
+            <div className="relative w-full pb-[25%] rounded-lg overflow-hidden">
               <img
                 src={form.imageUrl}
                 alt="Form header"
-                className="w-full h-48 object-cover rounded-lg"
+                className="absolute inset-0 w-full h-full object-cover"
               />
             </div>
-          )}
+          </div>
+        )}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{form.title}</h1>
+          {form.description && linkify(form.description)}
         </div>
-
+        {form.acceptingResponses === false ? (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+            This form is no longer accepting responses.
+          </div>
+        ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {form.fields.map((field) => (
             <div key={field.id} className="space-y-2">
@@ -281,8 +306,8 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
                 </label>
               )}
               {renderField(field)}
-              {errors[field.id] && (
-                <p className="text-sm text-red-600">{errors[field.id]?.message}</p>
+              {Boolean(errors[field.id]?.message) && (
+                <p className="text-sm text-red-600">{String(errors[field.id]?.message)}</p>
               )}
             </div>
           ))}
@@ -303,6 +328,7 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

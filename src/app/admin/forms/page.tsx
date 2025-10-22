@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/app/lib/firebase';
 import { FormLayout } from '@/app/types/form';
 import Link from 'next/link';
@@ -54,6 +54,20 @@ export default function FormsManagementPage() {
     } catch (error) {
       console.error('Error deleting form:', error);
       alert('Failed to delete form');
+    }
+  };
+
+  const toggleAccepting = async (formId: string, current?: boolean) => {
+    try {
+      const newValue = !(current === false ? false : true); // undefined -> true, toggled to false
+      await updateDoc(doc(db, 'forms', formId), {
+        acceptingResponses: newValue,
+        updatedAt: new Date(),
+      });
+      setForms(prev => prev.map(f => f.id === formId ? { ...f, acceptingResponses: newValue, updatedAt: new Date() } as FormLayout : f));
+    } catch (error) {
+      console.error('Error updating acceptingResponses:', error);
+      alert('Failed to update accepting responses');
     }
   };
 
@@ -160,6 +174,20 @@ export default function FormsManagementPage() {
                   </div>
                 )}
                 
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="text-sm">
+                    <span className={`font-medium ${form.acceptingResponses === false ? 'text-red-600' : 'text-green-700'}`}>
+                      {form.acceptingResponses === false ? 'Not accepting responses' : 'Accepting responses'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => toggleAccepting(form.id, form.acceptingResponses)}
+                    className={`px-3 py-1 rounded-md text-sm border ${form.acceptingResponses === false ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-yellow-50 text-yellow-800 border-yellow-200 hover:bg-yellow-100'}`}
+                  >
+                    {form.acceptingResponses === false ? 'Start accepting' : 'Stop accepting'}
+                  </button>
+                </div>
+
                 <div className="flex space-x-2">
                   <Link
                     href={`/forms/${form.id}`}
