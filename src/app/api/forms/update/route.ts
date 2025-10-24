@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Prevent accidental removal of important fields; update only provided fields
-    const updatePayload: any = {
+    const updatePayload: Partial<FormLayout> = {
       ...formData,
       updatedAt: new Date(),
     };

@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -8,6 +9,9 @@ import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Separator } from '@/app/components/ui/separator';
 import { FaInstagram, FaYoutube } from 'react-icons/fa';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { db } from '@/app/lib/firebase';
+import type { FormLayout } from '@/app/types/form';
 
 const poppins = Poppins({ subsets: ['latin'], weight: ['400', '600', '700'] });
 
@@ -26,6 +30,58 @@ const images = [
 ];
 
 export default function HomePage() {
+  const [promoted, setPromoted] = React.useState<FormLayout[]>([]);
+  const [loadingPromoted, setLoadingPromoted] = React.useState(true);
+  const [promotedError, setPromotedError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const loadPromoted = async () => {
+      try {
+        const formsRef = collection(db, 'forms');
+        const q = query(formsRef, where('promote', '==', true), orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        const list: FormLayout[] = [];
+        snap.forEach((d) => {
+          const data = d.data();
+          const toDate = (val: unknown): Date => {
+            if (!val) return new Date();
+            const maybeTs = val as { toDate?: () => Date };
+            if (typeof maybeTs?.toDate === 'function') return maybeTs.toDate();
+            if (val instanceof Date) return val;
+            if (typeof val === 'string' || typeof val === 'number') {
+              const nd = new Date(val);
+              return isNaN(nd.getTime()) ? new Date() : nd;
+            }
+            return new Date();
+          };
+          const item: FormLayout = {
+            id: d.id,
+            title: String(data.title ?? 'Untitled'),
+            description: data.description,
+            fields: Array.isArray(data.fields) ? data.fields : [],
+            imageUrl: data.imageUrl,
+            createdAt: toDate(data.createdAt),
+            updatedAt: toDate(data.updatedAt),
+            spreadsheetId: data.spreadsheetId,
+            acceptingResponses: data.acceptingResponses,
+            promote: data.promote,
+          };
+          // Only keep those accepting responses (undefined counts as accepting)
+          if (item.acceptingResponses !== false) {
+            list.push(item);
+          }
+        });
+        setPromoted(list);
+      } catch (e) {
+        console.error('Error loading promoted forms:', e);
+        setPromotedError('Failed to load promoted forms');
+      } finally {
+        setLoadingPromoted(false);
+      }
+    };
+    loadPromoted();
+  }, []);
+
   return (
     <main className={poppins.className}>
       <section className="relative isolate overflow-hidden bg-gradient-to-b from-amber-50 via-white to-sky-50">
@@ -64,7 +120,7 @@ export default function HomePage() {
                   className="w-fit bg-amber-400 text-slate-900 hover:bg-amber-500 shadow-lg ring-1 ring-white/60"
                 >
                   <Link href="/join" aria-label="Get involved with Christian Youth in Power">
-                    Get Involved Today
+                    Join Us
                   </Link>
                 </Button>
               </div>
@@ -72,6 +128,62 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {(!loadingPromoted && promoted.length > 0) && (
+        <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="mb-6 flex items-center justify-between"
+          >
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Register Now</h2>
+            <Separator className="ml-4 hidden flex-1 sm:block" />
+          </motion.div>
+          {promotedError && (
+            <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-700">{promotedError}</div>
+          )}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {promoted.map((form, i) => (
+              <motion.div
+                key={form.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.05 }}
+              >
+                <Card className="overflow-hidden">
+                  {form.imageUrl && (
+                    <div className="relative h-44 w-full overflow-hidden">
+                      <Image
+                        src={form.imageUrl}
+                        alt={form.title}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+                  <CardHeader className="pb-3">
+                    <CardTitle className="line-clamp-2 text-slate-900">{form.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {form.description && (
+                      <p className="mb-4 line-clamp-3 text-slate-700">{form.description}</p>
+                    )}
+                    <Button asChild size="md" className="w-full bg-sky-600 text-white hover:bg-sky-700">
+                      <Link href={`/forms/${form.id}`} aria-label={`Open form ${form.title}`}>
+                        Register
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <motion.div

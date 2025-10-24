@@ -25,15 +25,26 @@ export default function EditFormPage() {
           setError('Form not found');
           return;
         }
-        const data = snap.data() as any;
+        const data = snap.data() as Partial<FormLayout> & {
+          createdAt?: { toDate?: () => Date } | Date | string | number;
+          updatedAt?: { toDate?: () => Date } | Date | string | number;
+        };
         const initial: FormLayout = {
           id: snap.id,
-          title: data.title,
+          title: data.title || 'Untitled',
           description: data.description,
           fields: data.fields || [],
           imageUrl: data.imageUrl,
-          createdAt: data.createdAt?.toDate?.() || new Date(),
-          updatedAt: data.updatedAt?.toDate?.() || new Date(),
+          createdAt: typeof data.createdAt === 'object' && data.createdAt && 'toDate' in data.createdAt && typeof data.createdAt.toDate === 'function'
+            ? data.createdAt.toDate()
+            : data.createdAt instanceof Date
+              ? data.createdAt
+              : new Date(),
+          updatedAt: typeof data.updatedAt === 'object' && data.updatedAt && 'toDate' in data.updatedAt && typeof data.updatedAt.toDate === 'function'
+            ? data.updatedAt.toDate()
+            : data.updatedAt instanceof Date
+              ? data.updatedAt
+              : new Date(),
           spreadsheetId: data.spreadsheetId,
           acceptingResponses: data.acceptingResponses,
         };

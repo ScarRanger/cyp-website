@@ -31,9 +31,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read file bytes
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
+    // Read file bytes (Appwrite SDK accepts File directly; no need to access raw bytes here)
+    // const arrayBuffer = await file.arrayBuffer();
 
     // Upload to Appwrite Storage
     const bucketId = process.env.APPWRITE_BUCKET_ID as string;

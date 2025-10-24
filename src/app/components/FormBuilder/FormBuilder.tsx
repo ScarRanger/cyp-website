@@ -4,8 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { FormLayout, FormField } from '@/app/types/form';
 import FieldEditor from './FieldEditor';
 import FormPreview from './FormPreview';
-import { Plus, Save, Eye, EyeOff, Upload, X } from 'lucide-react';
+import { Save, Eye, EyeOff, Upload, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface FormBuilderProps {
   initialForm?: FormLayout;
@@ -32,7 +33,6 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
@@ -91,7 +91,6 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setImageFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target?.result as string);
@@ -105,7 +104,6 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
   };
 
   const removeImage = () => {
-    setImageFile(null);
     setImagePreview(null);
     setForm(prev => ({
       ...prev,
@@ -146,7 +144,6 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
             createdAt: new Date(),
             updatedAt: new Date(),
           });
-          setImageFile(null);
           setImagePreview(null);
 
           // Redirect to Manage Forms
@@ -212,10 +209,12 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
                 {imagePreview ? (
                   <div className="relative">
                     <div className="relative w-full pb-[25%] rounded-lg overflow-hidden">
-                      <img
+                      <Image
                         src={imagePreview}
                         alt="Form header"
-                        className="absolute inset-0 w-full h-full object-cover"
+                        fill
+                        sizes="100vw"
+                        className="object-cover"
                       />
                     </div>
                     <button
@@ -334,7 +333,7 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
               
               {form.fields.length === 0 && (
                 <p className="text-sm text-gray-500 text-center py-4">
-                  No fields added yet. Click "Add Field" to get started.
+                  No fields added yet. Click &quot;Add Field&quot; to get started.
                 </p>
               )}
             </div>
@@ -385,7 +384,7 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
             <FormPreview form={form} />
           ) : (
             <div className="bg-white border border-gray-200 rounded-lg p-8 shadow-sm text-center">
-              <p className="text-gray-500">Click "Show Preview" to see your form</p>
+              <p className="text-gray-500">Click &quot;Show Preview&quot; to see your form</p>
             </div>
           )}
         </div>

@@ -21,8 +21,8 @@ export default function AdminsManagementPage() {
       const snap = await getDocs(q);
       const list: Array<{ id: string; email: string }> = [];
       snap.forEach((d) => {
-        const data = d.data() as any;
-        list.push({ id: d.id, email: data.email });
+        const data = d.data() as { email?: string };
+        list.push({ id: d.id, email: data.email ?? '' });
       });
       setAdmins(list);
     } catch (err) {

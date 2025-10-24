@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { FormField } from '@/app/types/form';
 import { X, Plus, Trash2 } from 'lucide-react';
 
@@ -174,11 +175,15 @@ export default function FieldEditor({ field, onUpdate, onDelete }: FieldEditorPr
             </label>
             {field.imageUrl ? (
               <div className="space-y-2">
-                <img
-                  src={field.imageUrl}
-                  alt="Uploaded image"
-                  className="w-full h-32 object-cover rounded-lg border"
-                />
+                <div className="relative w-full h-32">
+                  <Image
+                    src={field.imageUrl}
+                    alt="Uploaded image"
+                    fill
+                    sizes="100vw"
+                    className="object-cover rounded-lg border"
+                  />
+                </div>
                 <button
                   onClick={removeImage}
                   className="text-sm text-red-600 hover:text-red-800"

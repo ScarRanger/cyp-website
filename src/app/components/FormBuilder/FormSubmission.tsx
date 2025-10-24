@@ -1,26 +1,23 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { FormLayout } from '@/app/types/form';
+import React, { useEffect, useState } from 'react';
+import { FormLayout, FormField } from '@/app/types/form';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/app/components/ui/button';
-import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 interface FormSubmissionProps {
   form: FormLayout;
 }
 
-interface FormData {
-  [key: string]: any;
-}
+type FormData = Record<string, unknown>;
 
 export default function FormSubmission({ form }: FormSubmissionProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   
-  const { register, handleSubmit, formState: { errors, isValid, isDirty }, reset, getValues, setValue, trigger } = useForm<FormData>({ mode: 'onChange' });
+  const { register, handleSubmit, formState: { errors, isValid }, reset, getValues, setValue } = useForm<FormData>({ mode: 'onChange' });
   const formKey = `form_draft_${form.id}`;
-  const firstErrorRef = useRef<HTMLElement | null>(null);
 
   const linkify = (text: string) => {
     const splitRegex = /(https?:\/\/[^\s]+)/g; // for splitting only
@@ -48,7 +45,7 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
     
     try {
       // Process form data to handle file uploads
-      const processedData: Record<string, any> = {};
+      const processedData: Record<string, unknown> = {};
       
       for (const [key, value] of Object.entries(data)) {
         if (value instanceof FileList && value.length > 0) {
@@ -118,15 +115,13 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
         const values = JSON.parse(raw);
         Object.entries(values).forEach(([k, v]) => setValue(k, v));
       }
-    } catch (err) {
-      // ignore
-    }
+    } catch {}
 
     const saveDraft = () => {
       try {
         const vals = getValues();
         localStorage.setItem(formKey, JSON.stringify(vals));
-      } catch (err) {}
+      } catch {}
     };
 
     const interval = setInterval(saveDraft, 5000);
@@ -139,14 +134,14 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
       try {
         const vals = getValues();
         const hasData = Object.keys(vals).some(k => {
-          const v = (vals as any)[k];
+          const v = (vals as Record<string, unknown>)[k];
           return v !== undefined && v !== '' && !(v instanceof FileList && v.length === 0);
         });
         if (hasData) {
           e.preventDefault();
           e.returnValue = '';
         }
-      } catch (err) {}
+      } catch {}
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
@@ -161,7 +156,7 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
     }
   }, [errors]);
 
-  const renderField = (field: any) => {
+  const renderField = (field: FormField) => {
     const baseClasses = "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-900 placeholder-slate-500";
     const errorClasses = "border-red-500 focus:ring-red-500";
     
@@ -267,16 +262,19 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
         );
       
       case 'admin-image':
-        console.log('Rendering admin-image field in submission:', field);
         return (
           <div className="space-y-2">
             {field.imageUrl ? (
               <div className="text-center">
-                <img
-                  src={field.imageUrl}
-                  alt={field.label}
-                  className="max-w-full h-auto mx-auto rounded-lg border"
-                />
+                <div className="relative mx-auto h-auto w-full max-w-md">
+                  <Image
+                    src={field.imageUrl}
+                    alt={field.label}
+                    width={800}
+                    height={600}
+                    className="h-auto w-full rounded-lg border"
+                  />
+                </div>
                 <p className="text-sm text-gray-600 mt-2">{field.label}</p>
               </div>
             ) : (
@@ -335,10 +333,12 @@ export default function FormSubmission({ form }: FormSubmissionProps) {
         {form.imageUrl && (
           <div className="mb-4">
             <div className="relative w-full pb-[25%] rounded-lg overflow-hidden">
-              <img
+              <Image
                 src={form.imageUrl}
                 alt="Form header"
-                className="absolute inset-0 w-full h-full object-cover"
+                fill
+                sizes="100vw"
+                className="object-cover"
               />
             </div>
           </div>

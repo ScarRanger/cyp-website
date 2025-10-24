@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { FormField, FormLayout } from '@/app/types/form';
 
 interface FormPreviewProps {
@@ -118,11 +119,15 @@ export default function FormPreview({ form }: FormPreviewProps) {
           <div key={field.id} className="space-y-2">
             {field.imageUrl ? (
               <div className="text-center">
-                <img
-                  src={field.imageUrl}
-                  alt={field.label}
-                  className="max-w-full h-auto mx-auto rounded-lg border"
-                />
+                <div className="relative mx-auto h-auto w-full max-w-md">
+                  <Image
+                    src={field.imageUrl}
+                    alt={field.label}
+                    width={800}
+                    height={600}
+                    className="h-auto w-full rounded-lg border"
+                  />
+                </div>
                 <p className="text-sm text-gray-600 mt-2">{field.label}</p>
               </div>
             ) : (
@@ -152,10 +157,12 @@ export default function FormPreview({ form }: FormPreviewProps) {
       {form.imageUrl && (
         <div className="mb-4">
           <div className="relative w-full pb-[25%] rounded-lg overflow-hidden">
-            <img
+            <Image
               src={form.imageUrl}
               alt="Form header"
-              className="absolute inset-0 w-full h-full object-cover"
+              fill
+              sizes="100vw"
+              className="object-cover"
             />
           </div>
         </div>

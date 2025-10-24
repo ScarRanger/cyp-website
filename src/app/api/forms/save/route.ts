@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     const formDoc = {
       ...formData,
       acceptingResponses: true,
+      promote: false,
       id: formId,
       createdAt: new Date(),
       updatedAt: new Date(),

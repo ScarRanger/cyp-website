@@ -3,10 +3,10 @@ import { db } from '@/app/lib/firebase-admin';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { formId: string } }
+  context: { params: Promise<{ formId: string }> }
 ) {
   try {
-    const { formId } = params;
+    const { formId } = await context.params;
     
     const formDoc = await db.collection('forms').doc(formId).get();
     

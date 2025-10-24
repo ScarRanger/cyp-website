@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/app/lib/firebase-admin';
 import { sheets } from '@/app/lib/google-sheets';
+import type { FormLayout, FormField } from '@/app/types/form';
 
 export async function POST(request: NextRequest) {
   try {
-    const { formId, data } = await request.json();
+    const { formId, data }: { formId: string; data: Record<string, unknown> } = await request.json();
     
     // Get form configuration
     const formDoc = await db.collection('forms').doc(formId).get();
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const form = formDoc.data() as any;
+    const form = formDoc.data() as Partial<FormLayout> & { fields?: Array<Pick<FormField, 'id' | 'type'>> };
     // Respect acceptingResponses flag; if undefined, treat as accepting
     if (form.acceptingResponses === false) {
       return NextResponse.json(
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       
       const rowData = [
         // Exclude 'admin-image' fields from being added to the sheet
-        ...form.fields.filter((field: any) => field.type !== 'admin-image').map((field: any) => {
+        ...(form.fields ?? []).filter((field) => field.type !== 'admin-image').map((field) => {
           const value = data[field.id];
           if (Array.isArray(value)) {
             return value.join(', ');
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
             const label = field.type === 'file' ? 'View File' : 'View Image';
             return `=HYPERLINK("${value}", "${label}")`;
           }
-          return value || '';
+          return (value as string | number | boolean | null | undefined) ?? '';
         }),
         timestamp,
         ipAddress

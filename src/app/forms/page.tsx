@@ -9,7 +9,8 @@ import { FormLayout } from "@/app/types/form";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Separator } from "@/app/components/ui/separator";
-import { Calendar, Users, Eye, ClipboardList, Sparkles } from "lucide-react";
+import { Calendar, Users, Eye, ClipboardList } from "lucide-react";
+import Image from "next/image";
 
 export default function FormsPage() {
   const [forms, setForms] = useState<FormLayout[]>([]);
@@ -24,13 +25,17 @@ export default function FormsPage() {
         const querySnapshot = await getDocs(q);
         const result: FormLayout[] = [];
         querySnapshot.forEach((doc) => {
-          const data = doc.data() as any;
-          const toDate = (val: any): Date => {
+          const data = doc.data();
+          const toDate = (val: unknown): Date => {
             if (!val) return new Date();
-            if (typeof val?.toDate === "function") return val.toDate();
+            const maybeTs = val as { toDate?: () => Date };
+            if (typeof maybeTs?.toDate === "function") return maybeTs.toDate();
             if (val instanceof Date) return val;
-            const d = new Date(val);
-            return isNaN(d.getTime()) ? new Date() : d;
+            if (typeof val === "string" || typeof val === "number") {
+              const d = new Date(val);
+              return isNaN(d.getTime()) ? new Date() : d;
+            }
+            return new Date();
           };
           result.push({
             id: doc.id,
@@ -126,7 +131,7 @@ export default function FormsPage() {
                   <Card className="overflow-hidden">
                     {form.imageUrl && (
                       <div className="relative h-44 w-full overflow-hidden">
-                        <img src={form.imageUrl} alt={form.title} className="h-full w-full object-cover" />
+                        <Image src={form.imageUrl} alt={form.title} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
                       </div>
                     )}
                     <CardHeader className="pb-3">

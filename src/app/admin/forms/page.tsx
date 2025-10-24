@@ -5,6 +5,7 @@ import { collection, getDocs, query, orderBy, deleteDoc, doc, updateDoc } from '
 import { db } from '@/app/lib/firebase';
 import { FormLayout } from '@/app/types/form';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Calendar, Users, Eye, Trash2, ExternalLink, Plus } from 'lucide-react';
 import AuthGuard from '@/app/components/Auth/AuthGuard';
 
@@ -23,12 +24,16 @@ export default function FormsManagementPage() {
         const formsData: FormLayout[] = [];
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          const normalizeDate = (val: any): Date => {
+          const normalizeDate = (val: unknown): Date => {
             if (!val) return new Date();
-            if (typeof val?.toDate === 'function') return val.toDate();
+            const maybeTs = val as { toDate?: () => Date };
+            if (typeof maybeTs?.toDate === 'function') return maybeTs.toDate();
             if (val instanceof Date) return val;
-            const d = new Date(val);
-            return isNaN(d.getTime()) ? new Date() : d;
+            if (typeof val === 'string' || typeof val === 'number') {
+              const d = new Date(val);
+              return isNaN(d.getTime()) ? new Date() : d;
+            }
+            return new Date();
           };
           formsData.push({
             id: doc.id,
@@ -78,6 +83,20 @@ export default function FormsManagementPage() {
     }
   };
 
+  const togglePromote = async (formId: string, current?: boolean) => {
+    try {
+      const newValue = !(current === true);
+      await updateDoc(doc(db, 'forms', formId), {
+        promote: newValue,
+        updatedAt: new Date(),
+      });
+      setForms(prev => prev.map(f => f.id === formId ? { ...f, promote: newValue, updatedAt: new Date() } as FormLayout : f));
+    } catch (error) {
+      console.error('Error updating promote:', error);
+      alert('Failed to update promote status');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -118,7 +137,7 @@ export default function FormsManagementPage() {
         <div className="text-center py-12">
           <div className="text-gray-400 text-6xl mb-4">📝</div>
           <h3 className="text-xl font-semibold text-gray-600 mb-2">No Forms Created</h3>
-          <p className="text-gray-500 mb-6">You haven't created any forms yet.</p>
+          <p className="text-gray-500 mb-6">You haven&apos;t created any forms yet.</p>
           <Link
             href="/admin"
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -135,11 +154,13 @@ export default function FormsManagementPage() {
               className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden"
             >
               {form.imageUrl && (
-                <div className="h-48 overflow-hidden">
-                  <img
+                <div className="h-48 overflow-hidden relative">
+                  <Image
                     src={form.imageUrl}
                     alt={form.title}
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover"
                   />
                 </div>
               )}
@@ -192,6 +213,22 @@ export default function FormsManagementPage() {
                     className={`px-3 py-1 rounded-md text-sm border ${form.acceptingResponses === false ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-yellow-50 text-yellow-800 border-yellow-200 hover:bg-yellow-100'}`}
                   >
                     {form.acceptingResponses === false ? 'Start accepting' : 'Stop accepting'}
+                  </button>
+                </div>
+
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="text-sm">
+                    <span className={`font-medium ${form.promote ? 'text-sky-700' : 'text-gray-600'}`}>
+                      {form.promote ? 'Promoted (shown on Home)' : 'Not promoted'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => togglePromote(form.id, form.promote)}
+                    className={`px-3 py-1 rounded-md text-sm border ${form.promote ? 'bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100' : 'bg-gray-50 text-gray-800 border-gray-200 hover:bg-gray-100'}`}
+                    disabled={form.acceptingResponses === false}
+                    title={form.acceptingResponses === false ? 'Enable accepting responses to promote' : undefined}
+                  >
+                    {form.promote ? 'Unpromote' : 'Promote'}
                   </button>
                 </div>
 

@@ -25,12 +25,16 @@ export default function FormSubmissionPage() {
         
         if (formSnap.exists()) {
           const data = formSnap.data();
-          const normalizeDate = (val: any): Date => {
+          const normalizeDate = (val: unknown): Date => {
             if (!val) return new Date();
-            if (typeof val?.toDate === 'function') return val.toDate();
+            const maybeTs = val as { toDate?: () => Date };
+            if (typeof maybeTs?.toDate === 'function') return maybeTs.toDate();
             if (val instanceof Date) return val;
-            const d = new Date(val);
-            return isNaN(d.getTime()) ? new Date() : d;
+            if (typeof val === 'string' || typeof val === 'number') {
+              const d = new Date(val);
+              return isNaN(d.getTime()) ? new Date() : d;
+            }
+            return new Date();
           };
           setForm({
             id: formSnap.id,
