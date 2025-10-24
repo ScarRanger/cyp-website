@@ -1,5 +1,4 @@
 "use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -10,6 +9,7 @@ import { Menu, X } from "lucide-react";
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/forms", label: "Events and Forms" },
+  { href: "/gallery", label: "Gallery" },
   { href: "/about", label: "About" },
   { href: "/join", label: "Join Us" },
   { href: "/contact", label: "Contact" },

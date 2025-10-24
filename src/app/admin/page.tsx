@@ -3,7 +3,7 @@
 import React from 'react';
 import AuthGuard from '@/app/components/Auth/AuthGuard';
 import Link from 'next/link';
-import { Plus, List, Settings } from 'lucide-react';
+import { Plus, List, Settings, Image as ImageIcon } from 'lucide-react';
 
 export default function AdminPage() {
   return (
@@ -15,7 +15,7 @@ export default function AdminPage() {
             <p className="text-gray-600">Quick actions to manage and create forms</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Link href="/admin/create" className="block">
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
                 <div className="flex items-center mb-4">
@@ -33,6 +33,26 @@ export default function AdminPage() {
                   <h2 className="text-lg font-semibold text-gray-900">Manage Forms</h2>
                 </div>
                 <p className="text-gray-600">View, edit, toggle accepting responses, or delete forms.</p>
+              </div>
+            </Link>
+
+            <Link href="/admin/gallery" className="block">
+              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
+                <div className="flex items-center mb-4">
+                  <ImageIcon className="h-5 w-5 text-purple-600 mr-2" />
+                  <h2 className="text-lg font-semibold text-gray-900">Gallery Uploads</h2>
+                </div>
+                <p className="text-gray-600">Upload images/videos and tag them by event/category.</p>
+              </div>
+            </Link>
+
+            <Link href="/admin/gallery/manage" className="block">
+              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
+                <div className="flex items-center mb-4">
+                  <ImageIcon className="h-5 w-5 text-sky-600 mr-2" />
+                  <h2 className="text-lg font-semibold text-gray-900">Manage Gallery</h2>
+                </div>
+                <p className="text-gray-600">Compact list with search, pagination, and bulk delete.</p>
               </div>
             </Link>
 
