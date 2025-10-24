@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/app/lib/firebase-admin';
+import { getDb } from '@/app/lib/firebase-admin';
 import { FormLayout } from '@/app/types/form';
 
 export async function POST(request: NextRequest) {
@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const db = getDb();
     const formRef = db.collection('forms').doc(formData.id);
     const existing = await formRef.get();
     if (!existing.exists) {

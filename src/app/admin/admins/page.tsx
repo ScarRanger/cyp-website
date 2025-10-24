@@ -75,7 +75,7 @@ export default function AdminsManagementPage() {
     <AuthGuard>
       <div className="max-w-4xl mx-auto p-6">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Manage Administrators</h1>
+          <h1 className="text-3xl font-semibold uppercase tracking-[-0.02em] text-gray-900">Manage Administrators</h1>
           <p className="text-gray-600">Add or remove admin accounts that can access the admin pages.</p>
         </div>
 

@@ -66,7 +66,7 @@ export default function FormsPage() {
             transition={{ duration: 0.5 }}
             className="mb-6 flex items-center justify-between"
           >
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Available Forms</h1>
+            <h1 className="text-3xl font-semibold uppercase tracking-[-0.02em] text-slate-900">Available Forms</h1>
             <Separator className="ml-4 hidden flex-1 sm:block" />
           </motion.div>
 

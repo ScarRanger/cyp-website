@@ -72,7 +72,7 @@ export default function FormSubmissionPage() {
         <div className="max-w-md w-full text-center">
           <div className="bg-white rounded-lg shadow-md p-8">
             <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Form Not Found</h2>
+            <h2 className="text-2xl font-semibold uppercase tracking-[-0.02em] text-gray-900 mb-2">Form Not Found</h2>
             <p className="text-gray-600 mb-6">
               {error || 'The form you are looking for does not exist or has been removed.'}
             </p>

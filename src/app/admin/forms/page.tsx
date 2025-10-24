@@ -121,7 +121,7 @@ export default function FormsManagementPage() {
       <div className="max-w-7xl mx-auto p-6">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Forms Management</h1>
+          <h1 className="text-3xl font-semibold uppercase tracking-[-0.02em] text-gray-900 mb-2">Forms Management</h1>
           <p className="text-gray-600">Manage your existing forms and create new ones</p>
         </div>
         <Link

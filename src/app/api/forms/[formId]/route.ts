@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/app/lib/firebase-admin';
+import { getDb } from '@/app/lib/firebase-admin';
 
 export async function GET(
   request: NextRequest,
@@ -8,6 +8,7 @@ export async function GET(
   try {
     const { formId } = await context.params;
     
+    const db = getDb();
     const formDoc = await db.collection('forms').doc(formId).get();
     
     if (!formDoc.exists) {

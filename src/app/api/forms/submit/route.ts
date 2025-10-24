@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/app/lib/firebase-admin';
+import { getDb } from '@/app/lib/firebase-admin';
 import { sheets } from '@/app/lib/google-sheets';
 import type { FormLayout, FormField } from '@/app/types/form';
 
@@ -8,6 +8,7 @@ export async function POST(request: NextRequest) {
     const { formId, data }: { formId: string; data: Record<string, unknown> } = await request.json();
     
     // Get form configuration
+    const db = getDb();
     const formDoc = await db.collection('forms').doc(formId).get();
     if (!formDoc.exists) {
       return NextResponse.json(

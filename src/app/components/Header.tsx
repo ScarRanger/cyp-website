@@ -29,7 +29,7 @@ export default function Header() {
             className="rounded-md"
             priority
           />
-          <span className="max-w-[50vw] truncate text-sm font-semibold tracking-tight text-sky-700 sm:max-w-none sm:text-base">
+          <span className="max-w-[50vw] truncate text-sm font-semibold uppercase tracking-[-0.02em] text-sky-700 sm:max-w-none sm:text-base">
             Christian Youth in Power
           </span>
         </Link>

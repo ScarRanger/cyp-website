@@ -2,20 +2,18 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Poppins } from "next/font/google";
 import { Button } from "@/app/components/ui/button";
 import { Separator } from "@/app/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { MapPin, Clock } from "lucide-react";
 
-const poppins = Poppins({ subsets: ["latin"], weight: ["400", "600", "700"] });
 
 const mapsUrl = "https://maps.app.goo.gl/q2GgBCUyaGfCgj7RA";
 const mapsEmbed = "https://www.google.com/maps?q=Jeevan+Darshan+Kendra,+Giriz&output=embed";
 
 export default function JoinPage() {
   return (
-    <main className={poppins.className}>
+    <main>
       <section className="relative isolate overflow-hidden bg-gradient-to-b from-amber-50 via-white to-sky-50">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <motion.div
@@ -24,7 +22,7 @@ export default function JoinPage() {
             transition={{ duration: 0.5 }}
             className="mb-6 flex items-center justify-between"
           >
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+            <h1 className="text-3xl font-semibold uppercase tracking-[-0.02em] text-slate-900 sm:text-4xl">
               Join CYP
             </h1>
             <Separator className="ml-4 hidden flex-1 sm:block" />

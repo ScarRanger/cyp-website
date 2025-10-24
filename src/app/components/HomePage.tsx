@@ -4,7 +4,6 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Poppins } from 'next/font/google';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Separator } from '@/app/components/ui/separator';
@@ -13,7 +12,6 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/app/lib/firebase';
 import type { FormLayout } from '@/app/types/form';
 
-const poppins = Poppins({ subsets: ['latin'], weight: ['400', '600', '700'] });
 
 const images = [
   { src: '/bangloreputreach.jpeg', label: 'Bangalore Outreach' },
@@ -83,7 +81,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <main className={poppins.className}>
+    <main>
       <section className="relative isolate overflow-hidden bg-gradient-to-b from-amber-50 via-white to-sky-50">
         <div className="absolute inset-0">
           <Image
@@ -106,11 +104,11 @@ export default function HomePage() {
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
             >
-              <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow sm:text-5xl">
+              <h1 className="text-3xl font-semibold uppercase tracking-[-0.02em] text-white drop-shadow sm:text-5xl">
                 Christian Youth in Power
                 
               </h1>
-              <p className="mt-3 text-base text-slate-100 drop-shadow sm:mt-4 sm:text-lg">
+              <p className="mt-3 text-base font-normal text-slate-100 drop-shadow sm:mt-4 sm:text-lg">
                 A Youth Outreach of The Community of the Good Shepherd.
               </p>
               <div className="pt-8">

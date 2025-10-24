@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/app/lib/firebase-admin';
+import { getDb } from '@/app/lib/firebase-admin';
 import { createSpreadsheet, setSpreadsheetPermissions, addHeaders } from '@/app/lib/google-sheets';
 import { FormLayout } from '@/app/types/form';
 
@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
     
+    const db = getDb();
     await db.collection('forms').doc(formId).set(formDoc);
     
     // Create Google Sheets spreadsheet
