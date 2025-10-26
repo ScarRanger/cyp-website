@@ -83,7 +83,6 @@ export default function Talks() {
       const data = await res.json();
       if (data?.url) {
         setPlayUrl(data.url);
-        // Open in a new tab/window for better UX on long media
         if (typeof window !== "undefined") {
           window.open(data.url, "_blank", "noopener,noreferrer");
         }
