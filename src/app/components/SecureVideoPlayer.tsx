@@ -129,9 +129,9 @@ export default function SecureVideoPlayer({ videoKey, token, className, autoPlay
       className={className}
       controls
       controlsList="nodownload noremoteplayback"
-       definition is missing this property.
+       
       disablePictureInPicture
-       definition is missing this property.
+       
       disableRemotePlayback
       onContextMenu={(e) => e.preventDefault()}
       onError={() => setError("Failed to load video. Check network and CloudFront permissions.")}
