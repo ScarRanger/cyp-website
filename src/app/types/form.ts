@@ -26,6 +26,7 @@ export interface FormLayout {
   spreadsheetId?: string;
   acceptingResponses?: boolean;
   promote?: boolean;
+  formType?: 'general' | 'registration' | 'feedback' | 'survey' | 'event';
 }
 
 export interface FormSubmission {

@@ -117,17 +117,24 @@ function Lightbox({ open, items, index, onClose }: { open: boolean; items: Galle
 export default function GalleryPage() {
   const [category, setCategory] = useState('all');
   const { items, cursor, loading, load } = useGallery(category);
-  const cats = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const it of items) {
-      if (it.category) {
-        const slug = it.category;
-        const label = it.categoryLabel || it.category;
-        if (!map.has(slug)) map.set(slug, label);
+  const [cats, setCats] = useState<{ slug: string; label: string }[]>([]);
+  useEffect(() => {
+    const fetchCats = async () => {
+      const res = await fetch('/api/gallery?limit=1000', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const map = new Map<string, string>();
+      for (const it of (data.items as GalleryItem[] || [])) {
+        if (it.category) {
+          const slug = it.category;
+          const label = it.categoryLabel || it.category;
+          if (!map.has(slug)) map.set(slug, label);
+        }
       }
-    }
-    return Array.from(map.entries()).map(([slug, label]) => ({ slug, label }));
-  }, [items]);
+      setCats(Array.from(map.entries()).map(([slug, label]) => ({ slug, label })));
+    };
+    void fetchCats();
+  }, []);
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
 

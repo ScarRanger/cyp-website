@@ -10,6 +10,7 @@ export default function AdminGalleryUploadPage() {
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
   const [category, setCategory] = useState('general');
+  const [categoryQuery, setCategoryQuery] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [thumbUrl, setThumbUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,6 +32,7 @@ export default function AdminGalleryUploadPage() {
 
   const onCategoryChange = (v: string) => {
     setCategory(v);
+    setCategoryQuery(v);
   };
   const onCategoryBlur = (v: string) => {
     setCategory(slugify(v));
@@ -38,10 +40,10 @@ export default function AdminGalleryUploadPage() {
 
   const categoryPreview = useMemo(() => slugify(category || ''), [category]);
   const filteredCategories = useMemo(() => {
-    const q = (category || '').toLowerCase();
+    const q = (categoryQuery || '').toLowerCase();
     const list = existingCategories.filter(c => !q || c.toLowerCase().includes(q));
     return list.slice(0, 50);
-  }, [existingCategories, category]);
+  }, [existingCategories, categoryQuery]);
 
   const loadItems = async () => {
     const res = await fetch('/api/gallery?limit=1000', { cache: 'no-store' });
@@ -387,7 +389,7 @@ export default function AdminGalleryUploadPage() {
                   <input
                     list="existing-categories"
                     value={category}
-                    onFocus={()=> setCatOpen(true)}
+                    onFocus={()=> { setCatOpen(true); setCategoryQuery(''); }}
                     onChange={(e)=>onCategoryChange(e.target.value)}
                     onBlur={(e)=>{ const v=e.target.value; setTimeout(()=>{ setCatOpen(false); onCategoryBlur(v); }, 100); }}
                     className="mt-1 w-full border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder:text-gray-500 bg-white"
@@ -404,7 +406,7 @@ export default function AdminGalleryUploadPage() {
                         <button
                           key={c}
                           type="button"
-                          onMouseDown={()=>{ setCategory(c); setCatOpen(false); }}
+                          onMouseDown={()=>{ setCategory(c); setCategoryQuery(''); setCatOpen(false); }}
                           className="block w-full text-left px-3 py-2 text-sm text-gray-900 hover:bg-gray-100"
                         >
                           {c}

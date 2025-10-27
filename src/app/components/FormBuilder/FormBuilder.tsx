@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { FormLayout, FormField } from '@/app/types/form';
 import FieldEditor from './FieldEditor';
 import FormPreview from './FormPreview';
-import { Save, Eye, EyeOff, Upload, X } from 'lucide-react';
+import { Save, Eye, EyeOff, Upload, X, Clipboard, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -21,6 +21,7 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
     fields: [],
     createdAt: new Date(),
     updatedAt: new Date(),
+    formType: 'general',
   });
 
   useEffect(() => {
@@ -35,6 +36,17 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [origin, setOrigin] = useState<string>('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogCopied, setDialogCopied] = useState(false);
+  const [savedInfo, setSavedInfo] = useState<{ formId?: string; spreadsheetUrl?: string; isEdit?: boolean }>({});
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setOrigin(window.location.origin);
+    }
+  }, []);
 
   const addField = (type: FormField['type'] = 'text') => {
     const newField: FormField = {
@@ -129,25 +141,12 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
 
       if (result.success) {
         if (isEdit) {
-          alert('Form updated successfully!');
-          router.push('/admin/forms');
+          setSavedInfo({ formId: form.id, isEdit: true });
+          setDialogOpen(true);
         } else {
           setForm(prev => ({ ...prev, id: result.formId }));
-          alert(`Form saved successfully!\n\nForm ID: ${result.formId}\nSpreadsheet: ${result.spreadsheetUrl}`);
-
-          // Reset builder state
-          setForm({
-            id: '',
-            title: 'New Form',
-            description: '',
-            fields: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
-          setImagePreview(null);
-
-          // Redirect to Manage Forms
-          router.push('/admin/forms');
+          setSavedInfo({ formId: result.formId, spreadsheetUrl: result.spreadsheetUrl, isEdit: false });
+          setDialogOpen(true);
         }
       } else {
         throw new Error(result.error || 'Failed to save form');
@@ -199,6 +198,23 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
                   rows={4}
                   placeholder="Enter form description (use Enter for line breaks)"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Form Type
+                </label>
+                <select
+                  value={form.formType || 'general'}
+                  onChange={(e) => setForm(prev => ({ ...prev, formType: e.target.value as FormLayout['formType'] }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                >
+                  <option value="general">General</option>
+                  <option value="registration">Registration</option>
+                  <option value="feedback">Feedback</option>
+                  <option value="survey">Survey</option>
+                  <option value="event">Event</option>
+                </select>
               </div>
 
               <div>
@@ -348,6 +364,37 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
             <Save size={20} className="mr-2" />
             {isSaving ? 'Saving...' : 'Save Form'}
           </button>
+
+          {/* Public Submission Link */}
+          {form.id && (
+            <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Public Submission Link</h4>
+              <div className="flex items-stretch gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${origin || ''}/forms/${form.id}`}
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-gray-900"
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(`${origin || ''}/forms/${form.id}`);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    } catch (_) {
+                      /* no-op */
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-md"
+                >
+                  {copied ? <Check size={16} /> : <Clipboard size={16} />}
+                  <span className="text-sm">{copied ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Field Editor */}
@@ -389,6 +436,81 @@ export default function FormBuilder({ initialForm }: FormBuilderProps) {
           )}
         </div>
       </div>
+
+      {/* Save/Update Result Dialog */}
+      {dialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setDialogOpen(false)} />
+          <div className="relative z-10 w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-start justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {savedInfo.isEdit ? 'Form Updated' : 'Form Saved'}
+              </h3>
+              <button
+                onClick={() => setDialogOpen(false)}
+                className="text-gray-500 hover:text-gray-700"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              {savedInfo.formId && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Form ID</p>
+                  <p className="text-sm text-gray-900 break-all">{savedInfo.formId}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-1">Submission URL</p>
+                <div className="flex items-stretch gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${origin || ''}/forms/${savedInfo.formId || form.id}`}
+                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-gray-900"
+                    onFocus={(e) => e.currentTarget.select()}
+                  />
+                  <button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(`${origin || ''}/forms/${savedInfo.formId || form.id}`);
+                        setDialogCopied(true);
+                        setTimeout(() => setDialogCopied(false), 1500);
+                      } catch (_) { /* no-op */ }
+                    }}
+                    className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-md"
+                  >
+                    {dialogCopied ? <Check size={16} /> : <Clipboard size={16} />}
+                    <span className="text-sm">{dialogCopied ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+              {savedInfo.spreadsheetUrl && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Spreadsheet</p>
+                  <a
+                    href={savedInfo.spreadsheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline break-all"
+                  >
+                    {savedInfo.spreadsheetUrl}
+                  </a>
+                </div>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => setDialogOpen(false)}
+                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
