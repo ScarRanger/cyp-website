@@ -113,7 +113,7 @@ export default function SecureVideoPlayer({ videoKey, token, className, autoPlay
         controls
         controlsList="nodownload noremoteplayback"
         onContextMenu={(e) => e.preventDefault()}
-        // @ts-ignore
+        // @ts-expect-error
         disableRemotePlayback
         onError={() => setError("Failed to load audio. Check network and CloudFront permissions.")}
         preload="metadata"
@@ -129,9 +129,9 @@ export default function SecureVideoPlayer({ videoKey, token, className, autoPlay
       className={className}
       controls
       controlsList="nodownload noremoteplayback"
-      // @ts-ignore
+      // @ts-expect-error
       disablePictureInPicture
-      // @ts-ignore
+      // @ts-expect-error
       disableRemotePlayback
       onContextMenu={(e) => e.preventDefault()}
       onError={() => setError("Failed to load video. Check network and CloudFront permissions.")}
