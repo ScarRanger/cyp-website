@@ -103,11 +103,11 @@ export default function FormsPage() {
                           There are currently no active forms to fill out. Check back soon or connect with us to stay updated on upcoming registrations and sign-ups.
                         </p>
                         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-center">
-                          <Button asChild className="bg-sky-600 text-white hover:bg-sky-700">
+                          {/* <Button asChild className="bg-sky-600 text-white hover:bg-sky-700">
                             <Link href="/events" aria-label="Explore CYP events">
                               Explore Events
                             </Link>
-                          </Button>
+                          </Button> */}
                           <Button asChild variant="outline">
                             <Link href="/join" aria-label="Join Christian Youth in Power">
                               Join CYP

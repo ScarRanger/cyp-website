@@ -10,9 +10,9 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/forms", label: "Events and Forms" },
   { href: "/gallery", label: "Gallery" },
-  { href: "/about", label: "About" },
+  // { href: "/about", label: "About" },
   { href: "/join", label: "Join Us" },
-  { href: "/contact", label: "Contact" },
+  // { href: "/contact", label: "Contact" },
 ];
 
 export default function Header() {

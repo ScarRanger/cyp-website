@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Music, Video as VideoIcon } from "lucide-react";
+import { Button } from "../components/ui/button";
 
 type TalkItem = {
   id: string;
@@ -91,36 +92,46 @@ export default function Talks() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2 border rounded-lg overflow-hidden">
           <ul className="divide-y">
-            {items.map((it) => (
-              <li
-                key={it.id}
-                className={`px-4 py-3 cursor-pointer hover:bg-gray-100 ${selected?.id === it.id ? "bg-gray-200" : ""}`}
-                onClick={() => onSelect(it)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="truncate font-medium text-gray-900">{it.title}</div>
-                  <span className="ml-2 inline-flex items-center rounded-full border px-2 py-0.5 text-xs text-gray-800">
-                    {it.type === "video" ? (
-                      <VideoIcon className="h-4 w-4" />
-                    ) : (
-                      <Music className="h-4 w-4" />
-                    )}
-                  </span>
-                </div>
-                <div className="text-xs text-gray-700 mt-0.5">
-                  {it.date ? new Date(it.date).toLocaleString() : new Date(it.createdAt).toLocaleString()}
-                </div>
-              </li>
-            ))}
+            {items.map((it) => {
+              const key = it.key || it.id;
+              const href = `/talks/watch/${encodeURIComponent(key).replace(/%2F/g, "/")}`;
+              return (
+                <li
+                  key={it.id}
+                  className={`px-4 py-3 hover:bg-gray-100 ${selected?.id === it.id ? "bg-gray-200" : ""}`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <a className="min-w-0 no-underline" href={href}>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs text-gray-800">
+                          {it.type === "video" ? (
+                            <VideoIcon className="h-4 w-4" />
+                          ) : (
+                            <Music className="h-4 w-4" />
+                          )}
+                        </span>
+                        <div className="truncate font-medium text-gray-900">{it.title}</div>
+                      </div>
+                      <div className="text-xs text-gray-700 mt-0.5">
+                        {it.date ? new Date(it.date).toLocaleString() : new Date(it.createdAt).toLocaleString()}
+                      </div>
+                    </a>
+                    <Button asChild size="sm" className="shrink-0">
+                      <a href={href}>Watch</a>
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
           <div className="p-3">
-            <button
-              className="w-full rounded-md border border-gray-400 px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-50 text-gray-900"
+            <Button
+              className="w-full"
               onClick={loadMore}
               disabled={!hasMore || loading}
             >
               {loading ? "Loading..." : hasMore ? "Load more" : "No more"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

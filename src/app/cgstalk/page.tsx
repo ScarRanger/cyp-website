@@ -38,12 +38,18 @@ export default async function Page() {
             const when = it.LastModified ? new Date(it.LastModified).toLocaleString() : "";
             return (
               <li key={key} className="px-4 py-3 hover:bg-slate-50">
-                <a className="flex items-center justify-between gap-3 no-underline" href={href}>
-                  <div className="min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <a className="min-w-0 no-underline" href={href}>
                     <div className="truncate text-slate-900 font-medium">{name}</div>
                     <div className="text-xs text-slate-600 mt-0.5">{when}</div>
-                  </div>
-                </a>
+                  </a>
+                  <a
+                    href={href}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 bg-sky-600 text-white hover:bg-sky-700 focus-visible:ring-sky-400 ring-offset-white h-9 px-3 text-sm"
+                  >
+                    Watch
+                  </a>
+                </div>
               </li>
             );
           })}
@@ -52,4 +58,5 @@ export default async function Page() {
     </NoDownload>
   );
 }
+
 
