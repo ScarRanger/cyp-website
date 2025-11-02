@@ -16,65 +16,53 @@ export default function AdminPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Link href="/admin/create" className="block">
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
-                <div className="flex items-center mb-4">
-                  <Plus className="h-5 w-5 text-blue-600 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Create New Form</h2>
-                </div>
-                <p className="text-gray-600">Open the form builder to create a new form.</p>
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
+              <div className="flex items-center mb-4">
+                <ImageIcon className="h-5 w-5 text-purple-600 mr-2" />
+                <h2 className="text-lg font-semibold text-gray-900">Forms</h2>
               </div>
-            </Link>
+              <p className="text-gray-600">Build new forms or manage existing ones.</p>
+              <div className="mt-4 flex gap-2">
+                <Link href="/admin/create" className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                  <Plus className="h-4 w-4" /> Create
+                </Link>
+                <Link href="/admin/forms" className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700">
+                  <List className="h-4 w-4" /> Manage
+                </Link>
+              </div>
+            </div>
 
-            <Link href="/admin/forms" className="block">
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
-                <div className="flex items-center mb-4">
-                  <List className="h-5 w-5 text-green-600 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Manage Forms</h2>
-                </div>
-                <p className="text-gray-600">View, edit, toggle accepting responses, or delete forms.</p>
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
+              <div className="flex items-center mb-4">
+                <ImageIcon className="h-5 w-5 text-sky-600 mr-2" />
+                <h2 className="text-lg font-semibold text-gray-900">Gallery</h2>
               </div>
-            </Link>
+              <p className="text-gray-600">Upload media and manage the gallery.</p>
+              <div className="mt-4 flex gap-2">
+                <Link href="/admin/gallery" className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-md bg-purple-600 text-white hover:bg-purple-700">
+                  <Plus className="h-4 w-4" /> Upload
+                </Link>
+                <Link href="/admin/gallery/manage" className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-md bg-sky-600 text-white hover:bg-sky-700">
+                  <List className="h-4 w-4" /> Manage
+                </Link>
+              </div>
+            </div>
 
-            <Link href="/admin/gallery" className="block">
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
-                <div className="flex items-center mb-4">
-                  <ImageIcon className="h-5 w-5 text-purple-600 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Gallery Uploads</h2>
-                </div>
-                <p className="text-gray-600">Upload images/videos and tag them by event/category.</p>
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
+              <div className="flex items-center mb-4">
+                <List className="h-5 w-5 text-red-600 mr-2" />
+                <h2 className="text-lg font-semibold text-gray-900">Fundraiser</h2>
               </div>
-            </Link>
-
-            <Link href="/admin/gallery/manage" className="block">
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
-                <div className="flex items-center mb-4">
-                  <ImageIcon className="h-5 w-5 text-sky-600 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Manage Gallery</h2>
-                </div>
-                <p className="text-gray-600">Compact list with search, pagination, and bulk delete.</p>
+              <p className="text-gray-600">Create or manage fundraiser items.</p>
+              <div className="mt-4 flex gap-2">
+                <Link href="/admin/fundraiser" className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700">
+                  <Plus className="h-4 w-4" /> Add Item
+                </Link>
+                <Link href="/admin/fundraiser/manage" className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-md bg-rose-600 text-white hover:bg-rose-700">
+                  <List className="h-4 w-4" /> Manage
+                </Link>
               </div>
-            </Link>
-
-            <Link href="/admin/fundraiser" className="block">
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
-                <div className="flex items-center mb-4">
-                  <Plus className="h-5 w-5 text-red-600 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Add Fundraiser Item</h2>
-                </div>
-                <p className="text-gray-600">Create a new fundraiser listing.</p>
-              </div>
-            </Link>
-
-            <Link href="/admin/fundraiser/manage" className="block">
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full">
-                <div className="flex items-center mb-4">
-                  <List className="h-5 w-5 text-red-600 mr-2" />
-                  <h2 className="text-lg font-semibold text-gray-900">Manage Fundraiser</h2>
-                </div>
-                <p className="text-gray-600">Activate, stock, or delete fundraiser items.</p>
-              </div>
-            </Link>
+            </div>
 
             <Link href="/admin/admins" className="block">
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm h-full">
