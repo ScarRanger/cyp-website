@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { EventItem } from "@/app/types/event";
 import Link from "next/link";
+import Spinner from "@/app/components/Spinner";
 
 export default function EventsPage() {
 	const [events, setEvents] = useState<EventItem[]>([]);
@@ -66,7 +67,11 @@ export default function EventsPage() {
 		})();
 	}, [events, randomThumbs]);
 
-	if (loading) return <div className="max-w-6xl mx-auto p-6">Loading events…</div>;
+	if (loading) return (
+		<div className="max-w-6xl mx-auto p-10 flex items-center justify-center">
+			<Spinner label="Loading events…" />
+		</div>
+	);
 	if (error) return <div className="max-w-6xl mx-auto p-6 text-red-700">{error}</div>;
 
 	return (

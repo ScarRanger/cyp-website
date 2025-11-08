@@ -1,6 +1,7 @@
 'use client';
 
 import AuthGuard from '@/app/components/Auth/AuthGuard';
+import Spinner from '@/app/components/Spinner';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
@@ -82,7 +83,7 @@ export default function AdminEventEditPage() {
       <div className="max-w-3xl mx-auto p-6">
         <h1 className="text-2xl font-semibold text-gray-900 mb-4">Edit Event</h1>
         {loading ? (
-          <div>Loading…</div>
+          <div className="py-10 flex items-center justify-center"><Spinner label="Loading event…" /></div>
         ) : error ? (
           <div className="text-red-700">{error}</div>
         ) : (

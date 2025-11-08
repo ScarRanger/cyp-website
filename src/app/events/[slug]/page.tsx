@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import GallerySection from '@/app/components/Gallery/GallerySection';
 import type { EventItem } from "@/app/types/event";
+import Spinner from "@/app/components/Spinner";
 
 export default function EventDetailPage() {
   const params = useParams<{ slug: string }>();
@@ -30,7 +31,11 @@ export default function EventDetailPage() {
     })();
   }, [slug]);
 
-  if (loading) return <div className="max-w-5xl mx-auto p-6">Loading…</div>;
+  if (loading) return (
+    <div className="max-w-5xl mx-auto p-10 flex items-center justify-center">
+      <Spinner label="Loading event…" />
+    </div>
+  );
   if (error) return <div className="max-w-5xl mx-auto p-6 text-red-700">{error}</div>;
   if (!event) return <div className="max-w-5xl mx-auto p-6">Event not found.</div>;
 

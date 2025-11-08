@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Spinner from '../Spinner';
 // import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, type User } from 'firebase/auth';
 import { auth, db } from '@/app/lib/firebase';
@@ -75,7 +76,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <Spinner size={80} ringWidth={6} label="Authenticating" ringClassName="border-t-blue-600" />
       </div>
     );
   }

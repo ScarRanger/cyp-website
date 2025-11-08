@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Music, Video as VideoIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
+import Spinner from "../components/Spinner";
 
 type TalkItem = {
   id: string;
@@ -90,6 +91,11 @@ export default function Talks() {
           {error}
         </div>
       )}
+      {items.length === 0 && loading ? (
+        <div className="py-16 flex justify-center">
+          <Spinner label="Loading talks" />
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2 border rounded-lg overflow-hidden">
           <ul className="divide-y">
@@ -156,7 +162,7 @@ export default function Talks() {
               onClick={loadMore}
               disabled={!hasMore || loading}
             >
-              {loading ? "Loading..." : hasMore ? "Load more" : "No more"}
+              {loading ? <Spinner label="Loading more" size={20} ringWidth={3} className="py-1" /> : hasMore ? "Load more" : "No more"}
             </Button>
           </div>
         </div>

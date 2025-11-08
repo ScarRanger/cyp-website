@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { GalleryItem } from '@/app/types/gallery';
+import Spinner from '@/app/components/Spinner';
 
 export type GallerySectionProps = {
   category: string;
@@ -108,9 +109,14 @@ export default function GallerySection({
       </div>
       <div className="flex justify-center mt-6">
         {cursor ? (
-          <button onClick={loadMore} disabled={loading} className="px-5 py-3 rounded-xl bg-gray-900 text-white disabled:opacity-50">{loading ? 'Loading…' : 'Load more'}</button>
+          <button onClick={loadMore} disabled={loading} className="px-5 py-3 rounded-xl bg-gray-900 text-white disabled:opacity-50 flex items-center gap-3">
+            {loading && <Spinner label="" size={20} ringWidth={3} trackClassName="border-white/40" ringClassName="border-t-white" />}
+            {loading ? 'Loading…' : 'Load more'}
+          </button>
         ) : (
-          <div className="text-gray-500 text-sm">{loading ? 'Loading…' : items.length === 0 ? 'No items found' : 'No more items'}</div>
+          <div className="text-gray-500 text-sm">
+            {loading ? <Spinner label="Loading…" size={28} ringWidth={3} trackClassName="border-gray-300" ringClassName="border-t-gray-700" /> : (items.length === 0 ? 'No items found' : 'No more items')}
+          </div>
         )}
       </div>
       <Lightbox open={open} items={items} index={index} onClose={() => setOpen(false)} onPrev={handlePrev} onNext={handleNext} />

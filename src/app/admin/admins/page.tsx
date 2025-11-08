@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import AuthGuard from '@/app/components/Auth/AuthGuard';
 import { collection, addDoc, query, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/app/lib/firebase';
+import Spinner from '@/app/components/Spinner';
 
 const OWNER_EMAIL = 'rhine.pereira@gmail.com';
 const ADMIN_COLLECTION = 'cyp_admins';
@@ -102,7 +103,9 @@ export default function AdminsManagementPage() {
           <h2 className="text-xl font-semibold mb-4 text-gray-900">Current Admins</h2>
 
           {loading ? (
-            <div className="text-center py-8">Loading...</div>
+            <div className="py-8 flex justify-center">
+              <Spinner label="Loading admins" />
+            </div>
           ) : (
             <ul className="space-y-2">
               {/* Show owner explicitly */}

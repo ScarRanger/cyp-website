@@ -4,6 +4,7 @@ import AuthGuard from '@/app/components/Auth/AuthGuard';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { EventItem } from '@/app/types/event';
+import Spinner from '@/app/components/Spinner';
 
 export default function AdminEventsListPage() {
   const [items, setItems] = useState<EventItem[]>([]);
@@ -34,7 +35,7 @@ export default function AdminEventsListPage() {
           <Link href="/admin/events/create" className="px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">New event</Link>
         </div>
         {loading ? (
-          <div>Loading…</div>
+          <div className="py-10 flex items-center justify-center"><Spinner label="Loading events…" /></div>
         ) : error ? (
           <div className="text-red-700">{error}</div>
         ) : (
