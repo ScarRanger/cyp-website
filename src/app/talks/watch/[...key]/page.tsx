@@ -1,7 +1,9 @@
 import TalkPlayer from "../../../components/TalkPlayer";
 import TalkShareButton from '@/app/components/TalkShareButton';
-import { GetObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { GetObjectCommand, ListObjectsV2Command, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { s3, TALKS_S3_BUCKET } from "@/app/lib/s3";
+import { redirect } from 'next/navigation';
+import { getAllTalks } from "@/app/lib/talksStore";
 
 function decodeKeyParam(param: string | string[]): string {
   const joined = Array.isArray(param) ? param.join("/") : param;
@@ -89,12 +91,9 @@ async function getSummary(key: string): Promise<string | null> {
 
 async function getTalkTitle(key: string): Promise<string> {
   try {
-    // Fetch from the talks API to get the actual title
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/talks`, { 
-      cache: 'no-store' 
-    });
-    const data = await res.json();
-    const talk = data.items?.find((item: any) => (item.key || item.id) === key);
+    // Directly use the talks store instead of API call
+    const talks = await getAllTalks();
+    const talk = talks.find((item: any) => (item.key || item.id) === key);
     if (talk?.title) return talk.title;
   } catch {
     // Fall back to deriving title from filename
@@ -105,9 +104,77 @@ async function getTalkTitle(key: string): Promise<string> {
   return filename.replace(/\.[^.]+$/, '').replace(/[\-_]+/g, ' ').trim();
 }
 
+async function checkKeyExists(key: string): Promise<boolean> {
+  try {
+    await s3.send(new HeadObjectCommand({ Bucket: TALKS_S3_BUCKET, Key: key }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function findNewKeyForOldKey(oldKey: string): Promise<string | null> {
+  try {
+    // Directly use the talks store instead of API call
+    const items = await getAllTalks();
+    
+    // Extract filename from old key
+    const oldFilename = oldKey.split('/').pop();
+    if (!oldFilename) return null;
+    
+    // Try to find a talk with the same filename
+    for (const item of items) {
+      const itemKey = item.key || item.id;
+      const itemFilename = itemKey.split('/').pop();
+      if (itemFilename === oldFilename) {
+        return itemKey;
+      }
+    }
+    
+    // Alternative: try to match by title from the old directory structure
+    // Old format: talks/<year>/<date>-<series>-<title>/<file>
+    // Extract title from old path and match
+    const pathParts = oldKey.split('/');
+    if (pathParts.length >= 3) {
+      const oldDirName = pathParts[2]; // e.g., "2025-11-12-romans-faith"
+      
+      for (const item of items) {
+        const itemKey = item.key || item.id;
+        const itemDirName = itemKey.split('/').slice(-2, -1)[0]; // Get directory name
+        const itemFilename = itemKey.split('/').pop();
+        
+        // Check if filename matches and directory contains similar parts
+        if (itemFilename === oldFilename) {
+          return itemKey;
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error finding new key:', error);
+    return null;
+  }
+}
+
 export default async function Page({ params }: { params: Promise<{ key: string[] }> }) {
   const p = await params;
   const key = decodeKeyParam(p?.key || []);
+  
+  // Check if the key exists in S3
+  const exists = await checkKeyExists(key);
+  
+  // If key doesn't exist, try to find the new location and redirect
+  if (!exists) {
+    const newKey = await findNewKeyForOldKey(key);
+    if (newKey) {
+      // Redirect to the new URL
+      const newPath = `/talks/watch/${encodeURIComponent(newKey).replace(/%2F/g, "/")}`;
+      redirect(newPath);
+    }
+    // If we can't find the new key, continue anyway - the player will show an error
+  }
+  
   const title = await getTalkTitle(key);
 
   let summaryHtml: string | null = null;
