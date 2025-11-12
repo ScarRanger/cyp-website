@@ -28,10 +28,17 @@ function buildDir({ title, date, series }: { title: string; date?: string; serie
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   const dslug = `${y}-${mm}-${dd}`;
-  const s = series ? slugify(series) : "";
-  // talks/<year>/<date>-<series>-<title>
-  const leaf = [dslug, s, t].filter(Boolean).join("-");
-  return `talks/${y}/${leaf}`;
+  
+  // If series is provided, organize as: talks/<year>/<series>/<date>-<title>
+  // If no series, keep as before: talks/<year>/<date>-<title>
+  if (series) {
+    const s = slugify(series);
+    const leaf = [dslug, t].filter(Boolean).join("-");
+    return `talks/${y}/${s}/${leaf}`;
+  } else {
+    const leaf = [dslug, t].filter(Boolean).join("-");
+    return `talks/${y}/${leaf}`;
+  }
 }
 
 export async function POST(req: NextRequest) {

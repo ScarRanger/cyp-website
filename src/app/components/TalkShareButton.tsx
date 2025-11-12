@@ -165,24 +165,21 @@ export default function TalkShareButton({ title }: TalkShareButtonProps) {
       {showMenu && (
         <div ref={menuRef} className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg border z-50">
           <div className="py-1">
-            <button onClick={openWhatsApp} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2">
+            <button onClick={openWhatsApp} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-900">
               <svg className="h-4 w-4 text-green-600" viewBox="0 0 24 24" fill="currentColor"><path d="M20.52 3.48A11.94 11.94 0 0 0 12 0C5.373 0 .001 5.372.001 12c0 2.11.55 4.086 1.6 5.84L0 24l6.407-1.64A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12 0-1.98-.49-3.84-1.48-5.52z"/></svg>
               WhatsApp
             </button>
-            <button onClick={openTelegram} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2">
-              <svg className="h-4 w-4 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.371 0 0 5.371 0 12s5.371 12 12 12 12-5.371 12-12S18.629 0 12 0zM17.04 7.017l-1.88 8.858c-.14.597-.51.745-1.03.464l-2.84-2.096-1.37 1.318c-.152.152-.28.28-.574.28l.205-2.905 5.29-4.77c.23-.205-.05-.32-.355-.115l-6.54 4.11-2.82-.885c-.612-.193-.624-.612.128-.9L16.3 6.1c.53-.195.993.128.74.917z"/></svg>
-              Telegram
-            </button>
-            <button onClick={openSMS} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2">
+            
+            <button onClick={openSMS} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-900">
               <MessageCircle className="h-4 w-4" />
               SMS
             </button>
-            <button onClick={openEmail} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2">
+            <button onClick={openEmail} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-900">
               <Mail className="h-4 w-4" />
               Email
             </button>
             <div className="border-t my-1" />
-            <button onClick={doCopy} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2">
+            <button onClick={doCopy} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-900">
               <LinkIcon className="h-4 w-4" />
               Copy link
             </button>

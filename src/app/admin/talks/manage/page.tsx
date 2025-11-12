@@ -24,6 +24,7 @@ export default function ManageTalksPage() {
   const [seriesList, setSeriesList] = useState<string[]>([]);
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | undefined>();
 
   useEffect(() => {
     loadTalks();
@@ -105,6 +106,7 @@ export default function ManageTalksPage() {
     try {
       setEditLoading(true);
       setError(undefined);
+      setSuccessMessage(undefined);
 
       // Determine series value based on mode
       let seriesValue: string | undefined;
@@ -134,9 +136,20 @@ export default function ManageTalksPage() {
         throw new Error(data.error || 'Failed to update talk');
       }
 
+      const data = await res.json();
+
       await loadTalks();
       await loadSeriesList(); // Refresh series list in case a new one was added
       setEditingTalk(null);
+
+      // Show success message with file move count if applicable
+      if (data.moved && data.moved > 0) {
+        setSuccessMessage(`Talk updated successfully! Moved ${data.moved} file(s) to new location.`);
+        setTimeout(() => setSuccessMessage(undefined), 5000);
+      } else {
+        setSuccessMessage('Talk updated successfully!');
+        setTimeout(() => setSuccessMessage(undefined), 3000);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to update talk');
     } finally {
@@ -201,6 +214,12 @@ export default function ManageTalksPage() {
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
               {error}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
+              {successMessage}
             </div>
           )}
 

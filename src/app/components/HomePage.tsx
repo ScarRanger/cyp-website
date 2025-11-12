@@ -525,7 +525,7 @@ export default function HomePage() {
             {[
               { icon: Calendar, label: "Years of Ministry", value: "35+", color: "amber", bgColor: "bg-amber-500/30", iconColor: "text-amber-300" },
               { icon: Users, label: "Active Youth", value: "120+", color: "sky", bgColor: "bg-sky-500/30", iconColor: "text-sky-300" },
-              { icon: Heart, label: "Lives Transformed", value: "500+", color: "rose", bgColor: "bg-rose-500/30", iconColor: "text-rose-300" },
+              { icon: Heart, label: "Lives Transformed", value: "10K+", color: "rose", bgColor: "bg-rose-500/30", iconColor: "text-rose-300" },
               { icon: Lightbulb, label: "Events & Outreaches", value: "150+", color: "emerald", bgColor: "bg-emerald-500/30", iconColor: "text-emerald-300" },
             ].map((stat, i) => (
               <motion.div
