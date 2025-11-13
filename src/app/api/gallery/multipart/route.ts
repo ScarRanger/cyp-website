@@ -16,12 +16,14 @@ export async function POST(req: NextRequest) {
     if (!action) return NextResponse.json({ error: "Missing action" }, { status: 400 });
 
     if (action === "create") {
-      const { type, category, filename, contentType } = body || {};
+      const { type, category, filename, contentType, year } = body || {};
       if (!type || !category || !filename) {
         return NextResponse.json({ error: "Missing fields" }, { status: 400 });
       }
+      // Use provided year or default to current year
+      const yearStr = year || new Date().getFullYear();
       const ext = (String(filename).split(".").pop() || "bin").toLowerCase();
-      const key = `gallery/assets/${type}/${category}/${randomUUID()}.${ext}`;
+      const key = `gallery/assets/${yearStr}/${type}/${category}/${randomUUID()}.${ext}`;
       const out = await s3.send(new CreateMultipartUploadCommand({
         Bucket: S3_BUCKET,
         Key: key,

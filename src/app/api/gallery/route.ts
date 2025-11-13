@@ -31,17 +31,36 @@ export async function GET(req: NextRequest) {
         if (!key || key.endsWith("/")) continue;
         if (existingKeys.has(key)) continue;
         // Key formats supported:
-        // - gallery/assets/{type}/{category}/{filename}
-        // - gallery/assets/{category}/{filename}
+        // - gallery/assets/{year}/{type}/{category}/{filename}  (new)
+        // - gallery/assets/{type}/{category}/{filename}         (old)
+        // - gallery/assets/{category}/{filename}                (old)
         const parts = key.split("/");
-        const typePart = parts[2] || "";
-        let categoryPart = parts[3] || undefined;
-        let filename = parts[4] || "";
-        if (typePart !== "image" && typePart !== "video") {
-          // Treat parts[2] as category and shift filename accordingly
-          categoryPart = parts[2] || undefined;
-          filename = parts[3] || "";
+        let yearPart: number | undefined;
+        let typePart = "";
+        let categoryPart: string | undefined;
+        let filename = "";
+
+        // Try to detect year-based structure first
+        const maybeYear = parseInt(parts[2] || "", 10);
+        if (!isNaN(maybeYear) && maybeYear >= 2000 && maybeYear <= 3000) {
+          // New structure: gallery/assets/{year}/{type}/{category}/{filename}
+          yearPart = maybeYear;
+          typePart = parts[3] || "";
+          categoryPart = parts[4] || undefined;
+          filename = parts[5] || "";
+        } else {
+          // Old structure: gallery/assets/{type}/{category}/{filename} or gallery/assets/{category}/{filename}
+          typePart = parts[2] || "";
+          categoryPart = parts[3] || undefined;
+          filename = parts[4] || "";
+          if (typePart !== "image" && typePart !== "video") {
+            // Treat parts[2] as category and shift filename accordingly
+            categoryPart = parts[2] || undefined;
+            filename = parts[3] || "";
+            typePart = "";
+          }
         }
+
         const ext = (filename.split(".").pop() || "").toLowerCase();
         const typeGuess = typePart === "video" || ["mp4","mov","webm","mkv","m4v"].includes(ext)
           ? "video" : "image";
@@ -54,6 +73,7 @@ export async function GET(req: NextRequest) {
           key,
           category: categoryPart,
           categoryLabel: categoryPart,
+          year: yearPart,
           createdAt,
         };
         discovered.push(item);
@@ -62,9 +82,15 @@ export async function GET(req: NextRequest) {
     } while (continuationToken);
 
     if (discovered.length) {
-      // Merge and sort newest-first by createdAt
-      all = [...discovered, ...all].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      await saveAllItems(all);
+      // Only add discovered items that don't already exist by URL to avoid duplicates
+      const existingUrls = new Set(all.map(i => i.url));
+      const newItems = discovered.filter(item => !existingUrls.has(item.url));
+      
+      if (newItems.length > 0) {
+        // Merge and sort newest-first by createdAt
+        all = [...newItems, ...all].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        await saveAllItems(all);
+      }
     }
   } catch (_) {
     // Ignore listing failures and continue with existing metadata
@@ -106,16 +132,21 @@ export async function POST(req: NextRequest) {
       const items = await getAllItems();
       const toRemove = items.filter(i => ids.includes(i.id));
 
-      await Promise.all(
-        toRemove
-          .filter(i => i.key)
-          .map(i => s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: i.key as string })))
-      );
+      // Only delete from S3 if explicitly requested (to prevent accidental deletion)
+      const deleteFromS3 = body?.deleteFromS3 === true;
+      
+      if (deleteFromS3) {
+        await Promise.all(
+          toRemove
+            .filter(i => i.key)
+            .map(i => s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: i.key as string })))
+        );
+      }
 
       const remaining = items.filter(i => !ids.includes(i.id));
       await saveAllItems(remaining);
 
-      return NextResponse.json({ ok: true, deleted: toRemove.length, remaining: remaining.length });
+      return NextResponse.json({ ok: true, deleted: toRemove.length, remaining: remaining.length, deletedFromS3: deleteFromS3 });
     }
 
     const item = body as GalleryItem;

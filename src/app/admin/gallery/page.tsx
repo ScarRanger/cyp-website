@@ -45,9 +45,14 @@ export default function AdminGalleryUploadPage() {
   const categoryPreview = useMemo(() => slugify(category || ''), [category]);
   const filteredCategories = useMemo(() => {
     const q = (categoryQuery || '').toLowerCase();
-    const list = existingCategories.filter(c => !q || c.toLowerCase().includes(q));
+    // Combine existing categories and events
+    const allOptions = [
+      ...existingCategories.map(c => ({ value: c, label: c, type: 'category' as const })),
+      ...events.map(ev => ({ value: slugify(ev.title), label: `${ev.title} (Event)`, type: 'event' as const, eventId: ev.id }))
+    ];
+    const list = allOptions.filter(opt => !q || opt.label.toLowerCase().includes(q) || opt.value.toLowerCase().includes(q));
     return list.slice(0, 50);
-  }, [existingCategories, categoryQuery]);
+  }, [existingCategories, events, categoryQuery]);
 
   const loadItems = async () => {
     const res = await fetch('/api/gallery?limit=1000', { cache: 'no-store' });
@@ -59,7 +64,7 @@ export default function AdminGalleryUploadPage() {
       cats.sort();
       setExistingCategories(cats as string[]);
     }
-    // Load events for linking
+    // Load events for dropdown
     try {
       const evRes = await fetch('/api/events?limit=1000', { cache: 'no-store' });
       const evJson = await evRes.json();
@@ -103,13 +108,13 @@ export default function AdminGalleryUploadPage() {
   };
 
   const singlePutUpload = async (
-    { file, fileType, categorySlug, categoryLabel, contentType }: { file: File; fileType: 'image'|'video'; categorySlug: string; categoryLabel: string; contentType: string },
+    { file, fileType, categorySlug, categoryLabel, contentType, year, eventId }: { file: File; fileType: 'image'|'video'; categorySlug: string; categoryLabel: string; contentType: string; year: number; eventId?: string },
     onProgress: (pct: number) => void
   ): Promise<GalleryItem> => {
     const ps = await fetch('/api/gallery/presign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: fileType, category: categorySlug, filename: file.name, contentType })
+      body: JSON.stringify({ type: fileType, category: categorySlug, filename: file.name, contentType, year })
     });
     const p = await ps.json().catch(() => ({}));
     if (!ps.ok) {
@@ -139,9 +144,6 @@ export default function AdminGalleryUploadPage() {
       ? globalThis.crypto.randomUUID()
       : Math.random().toString(36).slice(2));
 
-    const yStr = (year || '').trim();
-    const yearNum = yStr ? (parseInt(yStr, 10) || new Date().getFullYear()) : new Date().getFullYear();
-
     return {
       id,
       type: fileType,
@@ -152,20 +154,20 @@ export default function AdminGalleryUploadPage() {
       thumbnailUrl: fileType === 'video' ? (thumbUrl || undefined) : undefined,
       category: categorySlug,
       categoryLabel,
-      eventId: selectedEventId || undefined,
-      year: yearNum,
+      eventId: eventId,
+      year: year,
       createdAt: new Date().toISOString(),
     } as GalleryItem;
   };
 
   const multipartUpload = async (
-    { file, fileType, categorySlug, categoryLabel, contentType }: { file: File; fileType: 'image'|'video'; categorySlug: string; categoryLabel: string; contentType: string },
+    { file, fileType, categorySlug, categoryLabel, contentType, year, eventId }: { file: File; fileType: 'image'|'video'; categorySlug: string; categoryLabel: string; contentType: string; year: number; eventId?: string },
     onProgress: (pct: number) => void
   ): Promise<GalleryItem> => {
     const createRes = await fetch('/api/gallery/multipart', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create', type: fileType, category: categorySlug, filename: file.name, contentType })
+      body: JSON.stringify({ action: 'create', type: fileType, category: categorySlug, filename: file.name, contentType, year })
     });
     const created = await createRes.json().catch(()=> ({}));
     if (!createRes.ok) throw new Error(created?.error || 'Failed to init multipart');
@@ -276,9 +278,6 @@ export default function AdminGalleryUploadPage() {
       ? globalThis.crypto.randomUUID()
       : Math.random().toString(36).slice(2));
 
-    const yStr = (year || '').trim();
-    const yearNum = yStr ? (parseInt(yStr, 10) || new Date().getFullYear()) : new Date().getFullYear();
-
     return {
       id,
       type: fileType,
@@ -289,8 +288,8 @@ export default function AdminGalleryUploadPage() {
       thumbnailUrl: fileType === 'video' ? (thumbUrl || undefined) : undefined,
       category: categorySlug,
       categoryLabel,
-      eventId: selectedEventId || undefined,
-      year: yearNum,
+      eventId: eventId,
+      year: year,
       createdAt: new Date().toISOString(),
     } as GalleryItem;
   };
@@ -305,14 +304,25 @@ export default function AdminGalleryUploadPage() {
       const categoryLabel = category;
       const categorySlug = slugify(categoryLabel);
       if (categorySlug !== category) setCategory(categorySlug);
+      
+      // Validate category is not a year
+      if (!categorySlug || /^\d{4}$/.test(categorySlug)) {
+        throw new Error('Category is required and cannot be a year value (e.g., 2025). Please enter a descriptive category.');
+      }
+      
+      // Parse year from input
+      const yStr = (year || '').trim();
+      const yearNum = yStr ? (parseInt(yStr, 10) || new Date().getFullYear()) : new Date().getFullYear();
+      
+      // Check if category matches an event
+      const matchedEvent = events.find(ev => slugify(ev.title) === categorySlug);
+      const eventId = matchedEvent?.id || undefined;
+      
       // If video URL is provided, treat as single item regardless of files
       if (videoUrl.trim()) {
         const id = (globalThis.crypto && 'randomUUID' in globalThis.crypto
           ? globalThis.crypto.randomUUID()
           : Math.random().toString(36).slice(2));
-
-        const yStr = (year || '').trim();
-        const yearNum = yStr ? (parseInt(yStr, 10) || new Date().getFullYear()) : new Date().getFullYear();
 
         const single: GalleryItem = {
           id,
@@ -323,14 +333,14 @@ export default function AdminGalleryUploadPage() {
           thumbnailUrl: thumbUrl || undefined,
           category: categorySlug,
           categoryLabel,
-          eventId: selectedEventId || undefined,
+          eventId: eventId,
           year: yearNum,
           createdAt: new Date().toISOString(),
         };
         const res = await fetch('/api/gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(single) });
         if (!res.ok) throw new Error('Failed to save metadata');
         setMessage('Video saved');
-        setTitle(''); setCaption(''); setVideoUrl(''); setThumbUrl(''); setFiles([]); setStatuses({});
+        setTitle(''); setCaption(''); setVideoUrl(''); setThumbUrl(''); setFiles([]); setStatuses({}); setYear('');
         setLoading(false);
         void loadItems();
         return;
@@ -355,11 +365,11 @@ export default function AdminGalleryUploadPage() {
             // Use multipart for large files; fallback to single PUT for small ones
             const MULTIPART_THRESHOLD = 50 * 1024 * 1024; // 50MB
             if (f.size >= MULTIPART_THRESHOLD) {
-              const item = await multipartUpload({ file: f, fileType, categorySlug, categoryLabel, contentType: f.type || 'application/octet-stream' }, (pct)=> setProgress(prev=>({ ...prev, [f.name]: pct })));
+              const item = await multipartUpload({ file: f, fileType, categorySlug, categoryLabel, contentType: f.type || 'application/octet-stream', year: yearNum, eventId }, (pct)=> setProgress(prev=>({ ...prev, [f.name]: pct })));
               created.push(item);
               setStatuses(prev => ({ ...prev, [f.name]: 'saved' }));
             } else {
-              const single = await singlePutUpload({ file: f, fileType, categorySlug, categoryLabel, contentType: f.type || 'application/octet-stream' }, (pct)=> setProgress(prev=>({ ...prev, [f.name]: pct })));
+              const single = await singlePutUpload({ file: f, fileType, categorySlug, categoryLabel, contentType: f.type || 'application/octet-stream', year: yearNum, eventId }, (pct)=> setProgress(prev=>({ ...prev, [f.name]: pct })));
               created.push(single);
               setStatuses(prev => ({ ...prev, [f.name]: 'saved' }));
             }
@@ -380,7 +390,7 @@ export default function AdminGalleryUploadPage() {
       } else {
         setMessage(`Bulk upload complete (${created.length} saved)`);
       }
-      setFiles([]); setTitle(''); setCaption(''); setThumbUrl('');
+      setFiles([]); setTitle(''); setCaption(''); setThumbUrl(''); setYear('');
       void loadItems();
     } catch (err: any) {
       setMessage(err.message || 'Error');
@@ -403,7 +413,7 @@ export default function AdminGalleryUploadPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-900">Type</label>
-                  <select value={type} onChange={(e)=>setType(e.target.value as any)} className="mt-1 w-full border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 bg-white">
+                  <select value={type} onChange={(e)=>setType(e.target.value as any)} className="mt-1 w-full border border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 bg-white">
                     <option value="auto">Auto (mixed)</option>
                     <option value="image">Image only</option>
                     <option value="video">Video only</option>
@@ -417,7 +427,7 @@ export default function AdminGalleryUploadPage() {
                     onFocus={()=> { setCatOpen(true); setCategoryQuery(''); }}
                     onChange={(e)=>onCategoryChange(e.target.value)}
                     onBlur={(e)=>{ const v=e.target.value; setTimeout(()=>{ setCatOpen(false); onCategoryBlur(v); }, 100); }}
-                    className="mt-1 w-full border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder:text-gray-500 bg-white"
+                    className="mt-1 w-full border border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder:text-gray-500 bg-white"
                     placeholder="e.g. retreat-2025"
                   />
                   <datalist id="existing-categories">
@@ -427,14 +437,14 @@ export default function AdminGalleryUploadPage() {
                   </datalist>
                   {catOpen && filteredCategories.length > 0 && (
                     <div className="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-md border border-gray-200 bg-white text-gray-900 shadow">
-                      {filteredCategories.map((c) => (
+                      {filteredCategories.map((opt) => (
                         <button
-                          key={c}
+                          key={opt.value}
                           type="button"
-                          onMouseDown={()=>{ setCategory(c); setCategoryQuery(''); setCatOpen(false); }}
+                          onMouseDown={()=>{ setCategory(opt.type === 'event' ? opt.label.replace(' (Event)', '') : opt.value); setCategoryQuery(''); setCatOpen(false); }}
                           className="block w-full text-left px-3 py-2 text-sm text-gray-900 hover:bg-gray-100"
                         >
-                          {c}
+                          {opt.label}
                         </button>
                       ))}
                     </div>
@@ -449,25 +459,11 @@ export default function AdminGalleryUploadPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-900">Title</label>
-                    <input value={title} onChange={(e)=>setTitle(e.target.value)} className="mt-1 w-full border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 bg-white" />
+                    <input value={title} onChange={(e)=>setTitle(e.target.value)} className="mt-1 w-full border border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 bg-white" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-900">Caption</label>
-                    <input value={caption} onChange={(e)=>setCaption(e.target.value)} className="mt-1 w-full border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 bg-white" />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-900">Link to Event (optional)</label>
-                    <select
-                      value={selectedEventId}
-                      onChange={(e)=>setSelectedEventId(e.target.value)}
-                      className="mt-1 w-full border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 bg-white"
-                    >
-                      <option value="">— None —</option>
-                      {events.map(ev => (
-                        <option key={ev.id} value={ev.id}>{ev.title}</option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-gray-600">Associate this upload with an existing event so it appears on its gallery.</p>
+                    <input value={caption} onChange={(e)=>setCaption(e.target.value)} className="mt-1 w-full border border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 bg-white" />
                   </div>
                 </div>
               </div>
@@ -475,7 +471,7 @@ export default function AdminGalleryUploadPage() {
               {type === 'video' ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-900">Video URL (YouTube/Vimeo or direct)</label>
-                  <input value={videoUrl} onChange={(e)=>setVideoUrl(e.target.value)} className="mt-1 w-full border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder:text-gray-500 bg-white" placeholder="https://youtu.be/..." />
+                  <input value={videoUrl} onChange={(e)=>setVideoUrl(e.target.value)} className="mt-1 w-full border border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder:text-gray-500 bg-white" placeholder="https://youtu.be/..." />
                 </div>
               ) : null}
 
@@ -542,12 +538,12 @@ export default function AdminGalleryUploadPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-900">Year</label>
-                <input value={year} onChange={(e)=>setYear(e.target.value)} type="number" className="mt-1 w-full border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 bg-white" />
+                <input value={year} onChange={(e)=>setYear(e.target.value)} type="number" className="mt-1 w-full border border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 bg-white" />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-900">Thumbnail URL (for videos)</label>
-                <input value={thumbUrl} onChange={(e)=>setThumbUrl(e.target.value)} className="mt-1 w-full border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder:text-gray-500 bg-white" placeholder="https://.../thumb.jpg" />
+                <input value={thumbUrl} onChange={(e)=>setThumbUrl(e.target.value)} className="mt-1 w-full border border-gray-300 focus:border-gray-500 focus:ring-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder:text-gray-500 bg-white" placeholder="https://.../thumb.jpg" />
               </div>
 
               <div className="flex items-center gap-3">

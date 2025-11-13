@@ -6,13 +6,15 @@ import { randomUUID } from "node:crypto";
 
 export async function POST(req: NextRequest) {
   try {
-    const { type, category, filename, contentType } = await req.json();
+    const { type, category, filename, contentType, year } = await req.json();
     if (!type || !category || !filename) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
+    // Use provided year or default to current year
+    const yearStr = year || new Date().getFullYear();
     const ext = (filename.split(".").pop() || "bin").toLowerCase();
-    const key = `gallery/assets/${type}/${category}/${randomUUID()}.${ext}`;
+    const key = `gallery/assets/${yearStr}/${type}/${category}/${randomUUID()}.${ext}`;
 
     const command = new PutObjectCommand({
       Bucket: S3_BUCKET,
