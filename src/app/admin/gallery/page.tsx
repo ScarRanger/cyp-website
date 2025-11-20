@@ -486,7 +486,7 @@ export default function AdminGalleryUploadPage() {
                 >
                   <div className="mb-3 font-medium">Drop files here</div>
                   <div className="text-sm text-gray-600">or</div>
-                  <div className="mt-3">
+                  <div className="mt-3 flex items-center justify-center gap-3">
                     <label className="inline-block cursor-pointer px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">
                       Browse files
                       <input
@@ -497,6 +497,17 @@ export default function AdminGalleryUploadPage() {
                         className="hidden"
                       />
                     </label>
+                    {/* <button
+                      type="button"
+                      onClick={() => window.location.href = '/admin/google-photos'}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-white border-2 border-gray-300 text-gray-900 hover:bg-gray-50 hover:border-gray-400"
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L14.5 9.5H22L16 14L18.5 21.5L12 17L5.5 21.5L8 14L2 9.5H9.5L12 2Z" fill="currentColor" opacity="0.2"/>
+                        <path d="M12 2L14.5 9.5H22L16 14L18.5 21.5L12 17L5.5 21.5L8 14L2 9.5H9.5L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Import from Google Photos
+                    </button> */}
                   </div>
                 </div>
                 {!!files.length && (
