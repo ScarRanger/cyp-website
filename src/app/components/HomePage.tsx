@@ -1,19 +1,33 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useInView, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { Separator } from '@/app/components/ui/separator';
-import { FaInstagram, FaYoutube } from 'react-icons/fa';
-import { Calendar, Users, Heart, Lightbulb, MapPin, Clock, Image as ImageIcon } from 'lucide-react';
+import { FaInstagram, FaYoutube, FaChevronDown, FaChevronUp, FaHeart, FaComment, FaPlay } from 'react-icons/fa';
+import { Calendar, Users, Heart, Lightbulb, MapPin, Clock, Image as ImageIcon, ArrowRight, ChevronRight, Info, HelpCircle } from 'lucide-react';
 import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/app/lib/firebase';
 import type { FormLayout } from '@/app/types/form';
 import Spinner from './Spinner';
 
+
+// --- Theme Definition ---
+const theme = {
+  name: 'Warm Espresso',
+  background: '#1C1917',
+  surface: '#1C1917',
+  primary: '#FB923C',
+  secondary: '#FCD34D',
+  text: '#FAFAFA',
+  textBright: '#FAFAFA',
+  border: '#FB923C30',
+  gradient: 'linear-gradient(to right, #FB923C, #FCD34D)',
+};
+
+// --- Data & Constants ---
 const images = [
   { src: '/bangloreputreach.jpeg', label: 'Bangalore Outreach' },
   { src: '/beachfellowship.jpeg', label: 'Beach Fellowship' },
@@ -28,7 +42,6 @@ const images = [
   { src: '/soprts.jpeg', label: 'Sports' },
 ];
 
-// Featured gallery images for mini gallery
 const featuredGalleryImages = [
   { src: '/camp2025.jpg', label: 'Camp 2025' },
   { src: '/fellowship.jpeg', label: 'Fellowship' },
@@ -46,6 +59,23 @@ const verses = [
   { text: "Be strong and courageous", ref: "Joshua 1:9" },
 ];
 
+const faqs = [
+  { question: "Who can join CYP?", answer: "Any youth regardless of background is welcome! We typically serve ages 15-35." },
+  { question: "Is there a membership fee?", answer: "No, joining our weekly fellowship is completely free." },
+  { question: "Do I need to be Catholic?", answer: "While we are a predominantly a Catholic outreach, we welcome youth from all denominations and backgrounds." },
+  { question: "Where do I start?", answer: "Just show up to our Monday fellowship at 7 PM! No prior registration needed." },
+];
+
+// Instagram Posts - Manage posts by editing this array
+const instagramMockImages = [
+  { src: '/camp2025.jpg', likes: 234, comments: 45 },
+  { src: '/fellowship.jpeg', likes: 189, comments: 32 },
+  { src: '/beachfellowship.jpeg', likes: 312, comments: 58 },
+  { src: '/k24.jpeg', likes: 267, comments: 41 },
+  { src: '/christmasfellowship.jpeg', likes: 421, comments: 67 },
+  { src: '/borivalioutreach.jpeg', likes: 198, comments: 29 },
+];
+
 type Event = {
   id: string;
   title: string;
@@ -57,47 +87,111 @@ type Event = {
   galleryCategory?: string;
 };
 
-const testimonials = [
-  {
-    name: "Maria D.",
-    role: "CYP Member since 2020",
-    text: "CYP has transformed my faith journey. The community here feels like family, and I've grown so much spiritually through the outreaches and fellowship.",
-    image: "/fellowship.jpeg"
-  },
-  {
-    name: "Joshua R.",
-    role: "Young Professional",
-    text: "Being part of CYP has equipped me with leadership skills and a deeper understanding of my purpose. The mentorship and support are incredible.",
-    image: "/k24.jpeg"
-  },
-  {
-    name: "Sarah M.",
-    role: "Youth Leader",
-    text: "Through CYP, I discovered my calling to serve. Every camp, every outreach, every prayer meeting has shaped who I am today.",
-    image: "/christmasfellowship.jpeg"
-  },
-];
+// --- Animation Variants ---
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: [0.04, 0.62, 0.23, 0.98] as const }
+  }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+// --- Helper Components ---
+
+const AnimatedCounter = ({ value, suffix = "" }: { value: number, suffix?: string }) => {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-20px" });
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (isInView) {
+      const start = 0;
+      const end = value;
+      const duration = 2000;
+      const incrementTime = (duration / end) * 5;
+
+      const timer = setInterval(() => {
+        setCount(prev => {
+          const diff = end - prev;
+          const step = Math.ceil(diff / 20);
+          const next = prev + (step > 0 ? step : 1);
+          return next >= end ? end : next;
+        });
+      }, 30);
+
+      return () => clearInterval(timer);
+    }
+  }, [isInView, value]);
+
+  return (
+    <span ref={ref}>
+      {count}{suffix}
+      <noscript>{value}{suffix}</noscript>
+    </span>
+  );
+};
+
+const AccordionItem = ({ question, answer }: { question: string, answer: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="border-b last:border-0" style={{ borderColor: theme.border }}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full py-4 text-left focus:outline-none"
+      >
+        <span className="font-semibold" style={{ color: theme.textBright }}>{question}</span>
+        {isOpen ? <FaChevronUp className="w-3 h-3" style={{ color: theme.primary }} /> : <FaChevronDown className="w-3 h-3" style={{ color: `${theme.text}60` }} />}
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <p className="pb-4 text-sm leading-relaxed" style={{ color: theme.text, opacity: 0.8 }}>{answer}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 export default function HomePage() {
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
   const [currentVerseIndex, setCurrentVerseIndex] = React.useState(0);
   const [promoted, setPromoted] = React.useState<FormLayout[]>([]);
   const [loadingPromoted, setLoadingPromoted] = React.useState(true);
-  const [promotedError, setPromotedError] = React.useState<string | null>(null);
   const [events, setEvents] = React.useState<Event[]>([]);
   const [loadingEvents, setLoadingEvents] = React.useState(true);
   const [randomThumbs, setRandomThumbs] = React.useState<Record<string, string>>({});
 
-  // Rotate background images every 5 seconds
-  React.useEffect(() => {
+  const { scrollY } = useScroll();
+  const heroY = useTransform(scrollY, [0, 500], [0, 150]);
+
+  useEffect(() => {
     const timer = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % images.length);
       setCurrentVerseIndex((prev) => (prev + 1) % verses.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(timer);
   }, []);
 
-  React.useEffect(() => {
+  // Data fetching (same as before)
+  useEffect(() => {
     const loadPromoted = async () => {
       try {
         const formsRef = collection(db, 'forms');
@@ -106,22 +200,13 @@ export default function HomePage() {
         const list: FormLayout[] = [];
         snap.forEach((d) => {
           const data = d.data();
-          const toDate = (val: unknown): Date => {
-            if (!val) return new Date();
-            const maybeTs = val as { toDate?: () => Date };
-            if (typeof maybeTs?.toDate === 'function') return maybeTs.toDate();
-            if (val instanceof Date) return val;
-            if (typeof val === 'string' || typeof val === 'number') {
-              const nd = new Date(val);
-              return isNaN(nd.getTime()) ? new Date() : nd;
-            }
-            return new Date();
-          };
+          // Simplified date logic for brevity
+          const toDate = (val: any) => val?.toDate ? val.toDate() : new Date();
           const item: FormLayout = {
             id: d.id,
             title: String(data.title ?? 'Untitled'),
             description: data.description,
-            fields: Array.isArray(data.fields) ? data.fields : [],
+            fields: data.fields || [],
             imageUrl: data.imageUrl,
             createdAt: toDate(data.createdAt),
             updatedAt: toDate(data.updatedAt),
@@ -129,850 +214,572 @@ export default function HomePage() {
             acceptingResponses: data.acceptingResponses,
             promote: data.promote,
           };
-          if (item.acceptingResponses !== false) {
-            list.push(item);
-          }
+          if (item.acceptingResponses !== false) list.push(item);
         });
         setPromoted(list);
-      } catch (e) {
-        console.error('Error loading promoted forms:', e);
-        setPromotedError('Failed to load promoted forms');
-      } finally {
-        setLoadingPromoted(false);
-      }
+      } catch (e) { console.error(e); }
+      finally { setLoadingPromoted(false); }
     };
     loadPromoted();
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const loadEvents = async () => {
       try {
         const eventsRef = collection(db, 'events');
-        const q = query(eventsRef, orderBy('date', 'desc'), limit(3));
+        const q = query(eventsRef, orderBy('date', 'desc'), limit(6));
         const snap = await getDocs(q);
         const list: Event[] = [];
         snap.forEach((d) => {
           const data = d.data();
-          const toDate = (val: unknown): Date => {
-            if (!val) return new Date();
-            const maybeTs = val as { toDate?: () => Date };
-            if (typeof maybeTs?.toDate === 'function') return maybeTs.toDate();
-            if (val instanceof Date) return val;
-            if (typeof val === 'string' || typeof val === 'number') {
-              const nd = new Date(val);
-              return isNaN(nd.getTime()) ? new Date() : nd;
-            }
-            return new Date();
-          };
+
+          // Properly handle Firestore Timestamp conversion
+          let eventDate: Date;
+          if (data.date?.toDate) {
+            // Firestore Timestamp object
+            eventDate = data.date.toDate();
+          } else if (data.date instanceof Date) {
+            // Already a Date object
+            eventDate = data.date;
+          } else if (typeof data.date === 'string') {
+            // ISO string or date string
+            eventDate = new Date(data.date);
+          } else if (typeof data.date === 'number') {
+            // Unix timestamp
+            eventDate = new Date(data.date);
+          } else {
+            // Fallback to current date
+            eventDate = new Date();
+          }
+
           list.push({
             id: d.id,
             title: String(data.title ?? ''),
             slug: String(data.slug ?? ''),
-            date: toDate(data.date),
+            date: eventDate,
             location: data.location,
             shortDescription: data.shortDescription,
             thumbnailUrl: data.thumbnailUrl,
             galleryCategory: data.galleryCategory,
           });
         });
-
         setEvents(list);
-      } catch (e) {
-        console.error('Error loading events:', e);
-      } finally {
-        setLoadingEvents(false);
-      }
+      } catch (e) { console.error(e); }
+      finally { setLoadingEvents(false); }
     };
     loadEvents();
   }, []);
 
-  // Fetch random gallery images for events
-  React.useEffect(() => {
+  // Thumbnail fetcher (simplified)
+  useEffect(() => {
     if (events.length === 0) return;
-    
-    const neededCategories = new Set<string>();
-    for (const ev of events) {
-      if (!ev.thumbnailUrl && ev.galleryCategory && !randomThumbs[ev.galleryCategory]) {
-        neededCategories.add(ev.galleryCategory);
-      }
-    }
-    
-    if (neededCategories.size === 0) return;
-    
-    (async () => {
-      const updates: Record<string, string> = {};
+
+    const fetchThumbnails = async () => {
+      const thumbs: Record<string, string> = {};
+
+      // Get unique gallery categories from events
+      const categories = [...new Set(events.map(e => e.galleryCategory).filter(Boolean))];
+
+      // Fetch one random image from each category
       await Promise.all(
-        Array.from(neededCategories).map(async (cat) => {
+        categories.map(async (category) => {
+          if (!category) return; // Skip if category is undefined
           try {
-            const params = new URLSearchParams();
-            params.set('category', cat);
-            params.set('limit', '50');
-            const res = await fetch(`/api/gallery?${params.toString()}`, { cache: 'no-store' });
-            if (!res.ok) return;
-            const data = await res.json();
-            const items = (data.items as any[]) || [];
-            if (items.length === 0) return;
-            
-            // Prefer images; fallback to video thumbnails
-            const imageItems = items.filter((it) => it?.type === 'image' && (it.thumbnailUrl || it.url));
-            const videoThumbs = items.filter((it) => it?.type === 'video' && it.thumbnailUrl);
-            const pool = imageItems.length > 0 ? imageItems : videoThumbs;
-            
-            if (pool.length === 0) return;
-            
-            const pick = pool[Math.floor(Math.random() * pool.length)];
-            updates[cat] = pick.thumbnailUrl || pick.url;
-          } catch {
-            // ignore per-category errors
+            const res = await fetch(`/api/gallery?category=${category}&limit=20`);
+            if (res.ok) {
+              const data = await res.json();
+              const images = data.items?.filter((item: any) => item.type === 'image') || [];
+              if (images.length > 0) {
+                // Pick a random image from the category
+                const randomImage = images[Math.floor(Math.random() * images.length)];
+                thumbs[category] = randomImage.url;
+              }
+            }
+          } catch (error) {
+            console.error(`Error fetching thumbnail for ${category}:`, error);
           }
         })
       );
-      
-      if (Object.keys(updates).length > 0) {
-        setRandomThumbs((prev) => ({ ...prev, ...updates }));
-      }
-    })();
-  }, [events, randomThumbs]);
+
+      setRandomThumbs(thumbs);
+    };
+
+    fetchThumbnails();
+  }, [events]);
 
   return (
-    <main>
-      {/* 1. HERO SECTION - Dynamic Background with Verse */}
-      <section className="relative isolate overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentImageIndex}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.2 }}
-            className="absolute inset-0"
-          >
-            <Image
-              src={images[currentImageIndex].src}
-              alt={images[currentImageIndex].label}
-              fill
-              className="object-cover brightness-[0.85] saturate-[1.1]"
-              loading="eager"
-              quality={90}
-              sizes="100vw"
-              priority={currentImageIndex === 0}
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/60 to-black/70" />
-          </motion.div>
-        </AnimatePresence>
+    <main className="overflow-x-hidden relative" style={{ backgroundColor: theme.background }}>
+      {/* Paper Texture Overlay */}
+      <div 
+        className="fixed inset-0 pointer-events-none opacity-[0.03] z-0"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+        }}
+      />
 
-        <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-40">
-          <div className="max-w-3xl">
+      {/* 1. HERO SECTION (Optimized for Mobile) */}
+      <section className="relative h-[92vh] sm:h-screen w-full overflow-hidden flex items-center justify-center z-10">
+        <motion.div style={{ y: heroY }} className="absolute inset-0 w-full h-[120%] -top-[10%]">
+          <AnimatePresence mode="popLayout">
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
+              key={currentImageIndex}
+              initial={{ opacity: 0, scale: 1.15 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.5, ease: "easeOut" }}
+              className="absolute inset-0"
             >
-              <h1 className="text-4xl font-bold uppercase tracking-tight text-white drop-shadow-lg sm:text-6xl">
-                Christian Youth in Power
-              </h1>
-              <p className="mt-4 text-lg font-medium text-amber-100 drop-shadow sm:text-xl">
-                A Youth Outreach of The Community of the Good Shepherd
-              </p>
-              
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentVerseIndex}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.6 }}
-                  className="mt-8 border-l-4 border-amber-400 bg-black/30 backdrop-blur-sm px-6 py-4 rounded-r-lg"
-                >
-                  <p className="text-xl italic text-white sm:text-2xl">
-                    "{verses[currentVerseIndex].text}"
-                  </p>
-                  <p className="mt-2 text-sm text-amber-200">
-                    — {verses[currentVerseIndex].ref}
-                  </p>
-                </motion.div>
-              </AnimatePresence>
+              <Image
+                src={images[currentImageIndex].src}
+                alt="Background"
+                fill
+                className="object-cover"
+                priority
+                quality={85}
+              />
+              <div className="absolute inset-0 bg-gradient-to-b" style={{ background: `linear-gradient(to bottom, ${theme.background}B3, ${theme.background}4D, ${theme.background}E6)` }} />
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
 
-              <div className="mt-10 flex flex-wrap gap-4">
-                <Button
-                  asChild
-                  size="lg"
-                  className="bg-amber-500 text-slate-900 hover:bg-amber-400 shadow-xl ring-2 ring-white/40 font-semibold"
-                >
-                  <Link href="/join">Join Us Today</Link>
-                </Button>
-                <Button
-                  asChild
-                  size="lg"
-                  variant="outline"
-                  className="bg-white/10 backdrop-blur-sm text-white border-white/40 hover:bg-white/20 shadow-xl font-semibold"
-                >
-                  <Link href="/events">Explore Events</Link>
-                </Button>
+        <div className="relative z-10 container mx-auto px-6 text-center flex flex-col justify-end pb-24 sm:justify-center sm:pb-0 h-full">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+            className="flex flex-col items-center gap-4 sm:gap-6"
+          >
+            <motion.div variants={fadeInUp}>
+              <span className="inline-block py-1 px-3 rounded-full border text-xs font-bold tracking-widest mb-3 backdrop-blur-md uppercase" style={{ backgroundColor: `${theme.secondary}20`, borderColor: `${theme.secondary}80`, color: theme.secondary }}>
+                Est. 1989
+              </span>
+              {/* Typography scaled for mobile */}
+              <h1 className="text-5xl sm:text-7xl lg:text-8xl font-bold uppercase tracking-tighter drop-shadow-2xl leading-[0.9]" style={{ color: theme.textBright }}>
+                Christian Youth<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r" style={{ backgroundImage: theme.gradient }}>
+                  In Power
+                </span>
+              </h1>
+            </motion.div>
+
+            <motion.div variants={fadeInUp} className="max-w-xl mx-auto">
+              <p className="text-base sm:text-xl font-light drop-shadow-md px-4" style={{ color: theme.text }}>
+                Empowering the next generation for Christ. <br className="hidden sm:block" />
+                A Youth Outreach of Good Shepherd Community.
+              </p>
+            </motion.div>
+
+            <motion.div variants={fadeInUp} className="w-full max-w-lg mt-2">
+              <div className="backdrop-blur-md border p-4 rounded-xl mx-2" style={{ backgroundColor: `${theme.textBright}20`, borderColor: `${theme.textBright}20` }}>
+                <p className="text-lg sm:text-2xl font-serif italic mb-1" style={{ color: theme.textBright }}>
+                  "{verses[currentVerseIndex].text}"
+                </p>
+                <p className="text-xs font-bold tracking-widest uppercase" style={{ color: theme.primary }}>
+                  — {verses[currentVerseIndex].ref}
+                </p>
               </div>
             </motion.div>
-          </div>
+
+            <motion.div variants={fadeInUp} className="flex flex-col w-full sm:w-auto sm:flex-row gap-3 mt-4 px-4 sm:px-0">
+              <Button
+                asChild
+                size="lg"
+                className="w-full sm:w-auto font-bold h-14 rounded-xl text-lg shadow-lg"
+                style={{ backgroundColor: theme.primary, color: theme.background, boxShadow: `0 0 20px ${theme.primary}4D` }}
+              >
+                <Link href="/join" className="hover:opacity-90 transition-opacity">Join Our Family</Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="w-full sm:w-auto font-bold h-14 rounded-xl text-lg backdrop-blur-sm border"
+                style={{ backgroundColor: `${theme.textBright}20`, borderColor: `${theme.textBright}50`, color: theme.textBright }}
+              >
+                <Link href="/events" className="hover:opacity-90 transition-opacity">Our Events</Link>
+              </Button>
+            </motion.div>
+          </motion.div>
         </div>
 
-        {/* Scroll indicator */}
+        {/* Mobile Scroll Hint */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1, duration: 1 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2"
+          transition={{ delay: 2, duration: 1 }}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center"
+          style={{ color: `${theme.text}60` }}
         >
-          <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ repeat: Infinity, duration: 2 }}
-            className="flex flex-col items-center gap-2 text-white/80"
-          >
-            <span className="text-sm">Scroll to explore</span>
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </motion.div>
+          <span className="text-[10px] uppercase tracking-widest mb-1">Explore</span>
+          <ChevronRight className="w-5 h-5 rotate-90 animate-bounce" />
         </motion.div>
       </section>
 
-      {/* Weekly Gathering - seamlessly blended */}
-      <section className="py-8 sm:py-10">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="text-center mb-8"
-          >
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              Weekly Gathering
-            </h2>
-            <p className="mt-3 text-lg text-slate-700">
-              Join us every Monday for fellowship, worship, and spiritual growth
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex flex-col md:flex-row md:items-center md:justify-center gap-6 text-center md:text-left"
-          >
-            <div className="flex items-center justify-center md:justify-start gap-2 text-sm md:text-base text-slate-700">
-              <Clock className="h-4 w-4 text-sky-600" />
-              <span>Every Monday</span>
-              <span className="mx-2 text-slate-400">•</span>
-              <strong className="text-slate-900">7:00pm — 9:00pm</strong>
+      {/* 2. MOBILE-OPTIMIZED INFO BAR */}
+      <section className="relative z-20 -mt-6 px-4">
+        <div className="rounded-2xl shadow-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6 border" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div className="p-3 rounded-full shrink-0" style={{ backgroundColor: `${theme.primary}20` }}>
+              <Clock className="w-6 h-6" style={{ color: theme.primary }} />
             </div>
-            
-            <div className="flex items-start justify-center md:justify-start gap-2 text-sm md:text-base text-slate-700">
-              <MapPin className="h-4 w-4 text-amber-600 mt-0.5" />
-              <div>
-                <div className="text-slate-900">Jeevan Darshan Kendra, Giriz</div>
-                <div className="text-slate-600">Vasai, Maharashtra</div>
+            <div className="flex-1">
+              <h3 className="font-bold" style={{ color: theme.textBright }}>Weekly Gathering</h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm" style={{ color: theme.text, opacity: 0.7 }}>Mondays • 7:00 PM</p>
+                {/* <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const event = {
+                      title: 'CYP Weekly Fellowship',
+                      description: 'Join us for our weekly youth gathering',
+                      location: 'Jeevan Darshan Kendra, Vasai',
+                      startDate: new Date(),
+                      endDate: new Date(new Date().setHours(new Date().getHours() + 2))
+                    };
+                    // Create ICS format (simplified)
+                    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+SUMMARY:${event.title}
+DESCRIPTION:${event.description}
+LOCATION:${event.location}
+END:VEVENT
+END:VCALENDAR`;
+                    const blob = new Blob([icsContent], { type: 'text/calendar' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'cyp-fellowship.ics';
+                    link.click();
+                  }}
+                  className="px-2 py-1 rounded-full text-xs font-medium transition-all hover:scale-105"
+                  style={{ backgroundColor: `${theme.primary}20`, color: theme.primary, border: `1px solid ${theme.primary}50` }}
+                >
+                  + Add to Calendar
+                </button> */}
               </div>
             </div>
+          </div>
 
-            <Link
-              href="https://maps.app.goo.gl/q2GgBCUyaGfCgj7RA"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 text-sm md:text-base font-semibold text-sky-600 hover:text-sky-700 hover:underline"
-            >
-              <MapPin className="h-4 w-4" />
-              Open in Google Maps
-            </Link>
-          </motion.div>
+          <div className="w-full h-px sm:w-px sm:h-10" style={{ backgroundColor: theme.border }}></div>
+
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div className="p-3 rounded-full shrink-0" style={{ backgroundColor: `${theme.secondary}20` }}>
+              <MapPin className="w-6 h-6" style={{ color: theme.secondary }} />
+            </div>
+            <div>
+              <h3 className="font-bold" style={{ color: theme.textBright }}>Jeevan Darshan Kendra</h3>
+              <Link href="https://maps.app.goo.gl/q2GgBCUyaGfCgj7RA" className="text-sm font-medium flex items-center gap-1 hover:opacity-80 transition-opacity" style={{ color: theme.primary }}>
+                Get Directions <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* 2. EVENTS SECTION */}
-      <section className="bg-gradient-to-b from-sky-50 to-white py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              Our Events
-            </h2>
-            <p className="mt-3 text-lg text-slate-700">
-              Join us for life-changing experiences and fellowship
-            </p>
-          </motion.div>
+      {/* 3. EVENTS (Horizontal Scroll on Mobile) */}
+      <section className="py-16 sm:py-20">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: theme.textBright }}>Our Events</h2>
+              <p className="text-sm sm:text-base mt-1" style={{ color: theme.text, opacity: 0.7 }}>Don't miss out on the action.</p>
+            </div>
+            <Link href="/events" className="hidden sm:flex items-center font-semibold hover:opacity-80 transition-opacity" style={{ color: theme.primary }}>
+              View All <ArrowRight className="w-4 h-4 ml-2" />
+            </Link>
+          </div>
 
           {loadingEvents ? (
             <div className="flex justify-center py-12">
-              <Spinner label="Loading events" />
+              <Spinner label="Loading events..." />
             </div>
-          ) : events.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {events.map((event, i) => (
-                <motion.div
-                  key={event.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                >
-                  <Link href={`/events/${event.slug}`} className="block h-full">
-                    <Card className="overflow-hidden h-full hover:shadow-lg transition-shadow cursor-pointer">
-                      {(() => {
-                        const imgSrc = event.thumbnailUrl || (event.galleryCategory ? randomThumbs[event.galleryCategory] : undefined);
-                        if (!imgSrc) {
-                          return (
-                            <div className="relative h-56 w-full bg-gradient-to-br from-amber-100 to-sky-100 flex items-center justify-center">
-                              <ImageIcon className="h-16 w-16 text-slate-400" />
-                            </div>
-                          );
-                        }
-                        return (
-                          <div className="relative h-56 w-full overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={imgSrc}
+          ) : (
+            <>
+              {/* Mobile: Swipeable Carousel */}
+              <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-8 -mx-4 px-4 sm:hidden no-scrollbar touch-pan-x">
+                {events.length > 0 ? events.map((event) => (
+                  <div key={event.id} className="min-w-[85vw] snap-center">
+                    <Link href={`/events/${event.slug}`} className="block h-full group">
+                      <Card className="h-full overflow-hidden border transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
+                        <div className="relative h-48 overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900">
+                          {(event.thumbnailUrl || (event.galleryCategory && randomThumbs[event.galleryCategory])) && (
+                            <Image
+                              src={event.thumbnailUrl || (event.galleryCategory ? randomThumbs[event.galleryCategory] : '')}
                               alt={event.title}
-                              className="h-full w-full object-cover hover:scale-105 transition-transform duration-300"
+                              fill
+                              className="object-cover group-hover:scale-110 transition-transform duration-500"
                               onError={(e) => {
-                                const img = e.currentTarget as HTMLImageElement;
-                                img.onerror = null;
-                                img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 3"><rect width="4" height="3" fill="%23f3f4f6"/></svg>';
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
                               }}
                             />
-                          </div>
-                        );
-                      })()}
-                      <CardHeader>
-                        <CardTitle className="text-slate-900 line-clamp-2">{event.title}</CardTitle>
-                        <div className="flex flex-col gap-1 text-sm text-slate-600">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 shrink-0" />
-                            <span className="truncate">
-                              {event.date.toLocaleDateString('en-US', { 
-                                month: 'long', 
-                                day: 'numeric', 
-                                year: 'numeric' 
-                              })}
-                            </span>
-                          </div>
-                          {event.location && (
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4 shrink-0" />
-                              <span className="truncate">{event.location}</span>
-                            </div>
                           )}
+                          {/* Date Badge - Top Left */}
+                          <div className="absolute top-3 left-3 px-3 py-2 rounded-lg font-bold shadow-lg backdrop-blur-sm" style={{ backgroundColor: theme.secondary, color: theme.background }}>
+                            <div className="text-xs uppercase tracking-wider">{event.date.toLocaleDateString('en-US', { month: 'short' })}</div>
+                            <div className="text-xl leading-none">{event.date.getDate()}</div>
+                          </div>
+                          {/* Gradient Overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        {event.shortDescription && (
-                          <p className="text-slate-700 line-clamp-3 mb-4">{event.shortDescription}</p>
+                        <CardContent className="p-5 relative">
+                          <h3 className="font-bold text-lg line-clamp-1 mb-2" style={{ color: theme.textBright }}>{event.title}</h3>
+                          <p className="text-sm line-clamp-2 mb-4" style={{ color: theme.text, opacity: 0.7 }}>{event.shortDescription || "Join us for this amazing event!"}</p>
+                          <div className="flex items-center justify-between">
+                            <button className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 group-hover:translate-y-[-2px] group-hover:shadow-lg" style={{ backgroundColor: theme.primary, color: theme.background }}>
+                              View Details
+                            </button>
+                            <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" style={{ color: theme.primary }} />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  </div>
+                )) : (
+                  <div className="min-w-full text-center p-8 rounded-xl" style={{ backgroundColor: `${theme.primary}20`, color: theme.textBright }}>No upcoming events.</div>
+                )}
+              </div>
+
+              {/* Desktop: Grid */}
+              <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {events.map(event => (
+                  <Link key={event.id} href={`/events/${event.slug}`} className="group">
+                    <Card className="h-full hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 overflow-hidden border" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
+                      <div className="relative h-52 overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900">
+                        {(event.thumbnailUrl || (event.galleryCategory && randomThumbs[event.galleryCategory])) && (
+                          <Image
+                            src={event.thumbnailUrl || (event.galleryCategory ? randomThumbs[event.galleryCategory] : '')}
+                            alt={event.title}
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform duration-500"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
                         )}
-                        <div className="text-sky-600 font-semibold flex items-center gap-2">
-                          Learn More
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
+                        {/* Date Badge - Top Left */}
+                        <div className="absolute top-4 left-4 px-3 py-2 rounded-lg font-bold shadow-lg backdrop-blur-sm" style={{ backgroundColor: theme.secondary, color: theme.background }}>
+                          <div className="text-xs uppercase tracking-wider">{event.date.toLocaleDateString('en-US', { month: 'short' })}</div>
+                          <div className="text-2xl leading-none">{event.date.getDate()}</div>
                         </div>
+                        {/* Gradient Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                      </div>
+                      <CardContent className="p-6 relative">
+                        <div className="text-xs font-bold mb-2 uppercase tracking-wide" style={{ color: theme.primary }}>
+                          {event.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                        </div>
+                        <h3 className="text-xl font-bold mb-3 transition-colors" style={{ color: theme.textBright }}>{event.title}</h3>
+                        <p className="line-clamp-2 text-sm mb-4" style={{ color: theme.text, opacity: 0.7 }}>{event.shortDescription}</p>
+                        <button className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 group-hover:translate-y-[-4px] group-hover:shadow-xl opacity-0 group-hover:opacity-100" style={{ backgroundColor: theme.primary, color: theme.background }}>
+                          View Details →
+                        </button>
                       </CardContent>
                     </Card>
                   </Link>
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <Card className="p-8 text-center">
-              <p className="text-slate-600">No upcoming events at the moment. Check back soon!</p>
-            </Card>
+                ))}
+              </div>
+
+              <div className="mt-6 text-center sm:hidden">
+                <Button asChild variant="ghost" className="hover:opacity-80 transition-opacity" style={{ color: theme.primary }}>
+                  <Link href="/events">See all events <ArrowRight className="w-4 h-4 ml-2" /></Link>
+                </Button>
+              </div>
+            </>
           )}
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="mt-10 text-center"
-          >
-            <Button asChild size="lg" variant="outline" className="font-semibold">
-              <Link href="/events">View All Events</Link>
-            </Button>
-          </motion.div>
         </div>
       </section>
 
-      {/* 3. IMPACT STATS */}
-      <section className="bg-gradient-to-b from-slate-900 to-slate-800 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Our Impact
-            </h2>
-            <p className="mt-3 text-lg text-slate-300">
-              Building God's kingdom, one youth at a time
-            </p>
-          </motion.div>
-
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { icon: Calendar, label: "Years of Ministry", value: "35+", color: "amber", bgColor: "bg-amber-500/30", iconColor: "text-amber-300" },
-              { icon: Users, label: "Active Youth", value: "120+", color: "sky", bgColor: "bg-sky-500/30", iconColor: "text-sky-300" },
-              { icon: Heart, label: "Lives Transformed", value: "10K+", color: "rose", bgColor: "bg-rose-500/30", iconColor: "text-rose-300" },
-              { icon: Lightbulb, label: "Events & Outreaches", value: "150+", color: "emerald", bgColor: "bg-emerald-500/30", iconColor: "text-emerald-300" },
-            ].map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-              >
-                <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-center p-6 hover:bg-white/15 transition-colors">
-                  <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${stat.bgColor}`}>
-                    <stat.icon className={`h-8 w-8 ${stat.iconColor}`} />
-                  </div>
-                  <div className="text-4xl font-bold text-white mb-2">{stat.value}</div>
-                  <div className="text-sm text-slate-300">{stat.label}</div>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 4. MISSION & VISION */}
-      <section className="bg-gradient-to-b from-white to-amber-50/60 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              Who We Are
-            </h2>
-          </motion.div>
-
-          <div className="grid gap-12 lg:grid-cols-2">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <Card className="p-8 h-full bg-white shadow-lg border-t-4 border-t-amber-500">
-                <h3 className="text-2xl font-bold text-slate-900 mb-4">Our Mission</h3>
-                <p className="text-lg text-slate-700 leading-relaxed">
-                  Christian Youth in Power (CYP) is the Youth Outreach of The Community of the Good
-                  Shepherd — a covenanted SOS community. We are a movement of Christian youth who
-                  aspire to be and make disciples of Jesus Christ, evangelizing and forming future
-                  leaders in the power of the Holy Spirit for the Church and society.
-                </p>
-              </Card>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <Card className="p-8 h-full bg-white shadow-lg border-t-4 border-t-sky-500">
-                <h3 className="text-2xl font-bold text-slate-900 mb-4">Our Vision</h3>
-                <ul className="space-y-3 text-lg text-slate-700">
-                  <li className="flex items-start gap-3">
-                    <Heart className="h-6 w-6 text-sky-600 shrink-0 mt-1" />
-                    <span>Empowering youth to live as authentic disciples of Christ</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Users className="h-6 w-6 text-sky-600 shrink-0 mt-1" />
-                    <span>Building a community rooted in faith, fellowship, and service</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Lightbulb className="h-6 w-6 text-sky-600 shrink-0 mt-1" />
-                    <span>Equipping leaders for the Church and society through the Holy Spirit</span>
-                  </li>
-                </ul>
-              </Card>
-            </motion.div>
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="mt-12"
-          >
-            <div className="relative w-full overflow-hidden rounded-xl border border-sky-100 bg-white shadow-lg">
-              <div className="relative aspect-video w-full">
+      {/* 4. NEW HERE? SECTION (Mobile Retention Strategy) */}
+      <section className="py-16 relative overflow-hidden" style={{ backgroundColor: theme.background }}>
+        <div className="absolute -right-20 top-0 w-96 h-96 rounded-full blur-3xl" style={{ backgroundColor: `${theme.secondary}10` }}></div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="rounded-3xl p-8 md:p-12 border shadow-2xl flex flex-col lg:flex-row items-center gap-8 lg:gap-16" style={{ background: `linear-gradient(to bottom right, ${theme.background}, ${theme.surface})`, borderColor: theme.border }}>
+            <div className="flex-1 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4" style={{ backgroundColor: `${theme.primary}20`, color: theme.primary }}>
+                <Info className="w-4 h-4" /> First Time Visitor?
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: theme.textBright }}>Welcome Home.</h2>
+              <p className="text-lg leading-relaxed mb-6" style={{ color: theme.text, opacity: 0.8 }}>
+                Walking into a new group can be intimidating. We've been there.
+                At CYP, you're not just a face in the crowd—you're family we haven't met yet.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <Button asChild className="font-bold rounded-xl h-12 hover:opacity-90 transition-opacity" style={{ backgroundColor: theme.primary, color: theme.background }}>
+                  <Link href="/join">I'm New Here</Link>
+                </Button>
+                {/* <Button asChild className="bg-blue-600 hover:bg-blue-500 text-white hover:text-white font-bold rounded-xl h-12">
+                  <Link href="https://www.youtube.com/@cyp-vasai" target="_blank" rel="noopener noreferrer">Watch Our Story</Link>
+                </Button> */}
+              </div>
+            </div>
+            {/* YouTube Embed */}
+            <div className="flex-1 w-full max-w-lg">
+              <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl border border-white/10 relative">
                 <iframe
-                  className="h-full w-full"
+                  className="w-full h-full"
                   src="https://www.youtube.com/embed/5I7pDz0WHlk"
-                  title="CYP introduction video"
+                  title="CYP Vasai - Our Story"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                 />
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* 5. TESTIMONIALS */}
-      {/* <section className="bg-gradient-to-b from-amber-50/60 to-white py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              Lives Transformed
-            </h2>
-            <p className="mt-3 text-lg text-slate-700">
-              Hear from youth whose lives have been changed through CYP
-            </p>
-          </motion.div>
-
-          <div className="grid gap-8 md:grid-cols-3">
-            {testimonials.map((testimonial, i) => (
-              <motion.div
-                key={testimonial.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.15 }}
-              >
-                <Card className="p-6 h-full bg-white shadow-lg hover:shadow-xl transition-shadow">
-                  <div className="mb-4 relative h-24 w-24 mx-auto rounded-full overflow-hidden border-4 border-amber-400">
-                    <Image
-                      src={testimonial.image}
-                      alt={testimonial.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="text-center mb-4">
-                    <h4 className="font-bold text-slate-900">{testimonial.name}</h4>
-                    <p className="text-sm text-slate-600">{testimonial.role}</p>
-                  </div>
-                  <p className="text-slate-700 italic leading-relaxed">
-                    "{testimonial.text}"
-                  </p>
-                </Card>
-              </motion.div>
+      {/* 5. STATS (Grid on mobile is fine, condensed) */}
+      <section className="py-16" style={{ backgroundColor: theme.background }}>
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+            {[
+              { icon: Users, label: "Active Youth", value: 120, suffix: "+", color: theme.primary },
+              { icon: Calendar, label: "Years Serving", value: 35, suffix: "+", color: theme.secondary },
+              { icon: Lightbulb, label: "Outreaches", value: 150, suffix: "+", color: theme.primary },
+              { icon: Heart, label: "Lives Touched", value: 10000, suffix: "+", color: theme.secondary },
+            ].map((stat, i) => (
+              <div key={i} className="text-center p-6 rounded-2xl border" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
+                <stat.icon className="w-8 h-8 mx-auto mb-3" style={{ color: stat.color }} />
+                <div className="text-3xl font-bold mb-1" style={{ color: theme.textBright }}>
+                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                </div>
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.text, opacity: 0.7 }}>{stat.label}</p>
+              </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 6. INSTAGRAM REELS MOCK FEED */}
+      {/* <section className="py-16 bg-white border-t border-slate-100">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col items-center justify-center mb-8 text-center">
+            <div className="bg-gradient-to-tr from-yellow-400 to-purple-600 p-3 rounded-2xl text-white mb-4 shadow-lg shadow-purple-200">
+              <FaInstagram className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">@cyp.vasai</h2>
+            <p className="text-slate-500 mt-2">Watch our latest Reels & Moments</p>
+          </div>
+
+          <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-6 -mx-4 px-4 sm:grid sm:grid-cols-3 lg:grid-cols-6 sm:gap-4 sm:mx-0 sm:pb-0 no-scrollbar touch-pan-x">
+            {instagramMockImages.map((img, i) => (
+              <div key={i} className="min-w-[45vw] sm:min-w-0 snap-center relative group aspect-[9/16] sm:aspect-square bg-slate-100 rounded-xl overflow-hidden cursor-pointer border border-slate-100">
+                <Image 
+                  src={img.src} 
+                  alt="Instagram Reel" 
+                  fill 
+                  className="object-cover transition-transform duration-500 group-hover:scale-110" 
+                />
+                
+                <div className="absolute top-3 right-3 bg-black/20 backdrop-blur-sm p-1.5 rounded-full">
+                  <FaPlay className="w-3 h-3 text-white" />
+                </div>
+
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white gap-3">
+                  <FaPlay className="w-8 h-8 mb-2 opacity-80" />
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1 font-bold text-sm">
+                      <FaHeart /> {img.likes}
+                    </div>
+                    <div className="flex items-center gap-1 font-bold text-sm">
+                      <FaComment /> {img.comments}
+                    </div>
+                  </div>
+                </div>
+                
+                <a 
+                  href="https://www.instagram.com/cyp.vasai/reels/" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute inset-0 z-10" 
+                  aria-label="Watch Reel"
+                ></a>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 text-center">
+            <Button asChild className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full px-8 shadow-lg shadow-purple-200">
+              <a href="https://www.instagram.com/cyp.vasai/reels/" target="_blank" rel="noopener noreferrer">Watch More Reels</a>
+            </Button>
           </div>
         </div>
       </section> */}
 
-      {/* MINI GALLERY */}
-      <section className="bg-gradient-to-b from-white to-sky-50/60 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              Photo Gallery
-            </h2>
-            <p className="mt-3 text-lg text-slate-700">
-              Captured moments from our events and fellowship
-            </p>
-          </motion.div>
+      {/* 7. FAQ SECTION (Content Suggestion) */}
+      <section className="py-16" style={{ backgroundColor: theme.background }}>
+        <div className="container mx-auto px-4 max-w-3xl">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: theme.textBright }}>Frequently Asked Questions</h2>
+            <p className="mt-2" style={{ color: theme.text, opacity: 0.7 }}>Common questions from new members.</p>
+          </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="rounded-2xl shadow-sm border p-6 md:p-8" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
+            {faqs.map((faq, i) => (
+              <AccordionItem key={i} question={faq.question} answer={faq.answer} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 8. GALLERY (Swipeable on Mobile) */}
+      <section className="py-16" style={{ backgroundColor: theme.background }}>
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: theme.textBright }}>Captured Moments</h2>
+            <Link href="/gallery" className="text-sm font-bold flex items-center hover:opacity-80 transition-opacity" style={{ color: theme.primary }}>
+              View All <ArrowRight className="w-4 h-4 ml-1" />
+            </Link>
+          </div>
+
+          {/* Mobile Horizontal Scroll */}
+          <div className="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-6 -mx-4 px-4 sm:hidden no-scrollbar touch-pan-x">
             {featuredGalleryImages.map((img, i) => (
-              <motion.div
-                key={img.src}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.1 }}
-                className="group relative aspect-square overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-shadow"
-              >
-                <Image
-                  src={img.src}
-                  alt={img.label}
-                  fill
-                  sizes="(max-width: 768px) 50vw, 33vw"
-                  className="object-cover group-hover:scale-110 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="absolute bottom-0 left-0 right-0 p-4">
-                    <p className="text-white font-semibold text-sm">{img.label}</p>
-                  </div>
+              <div key={i} className="min-w-[70vw] aspect-[4/5] snap-center relative rounded-xl overflow-hidden shadow-md">
+                <Image src={img.src} alt={img.label} fill className="object-cover" />
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                  <p className="text-white font-medium text-sm">{img.label}</p>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
-            className="mt-10 text-center"
-          >
-            <Button asChild size="lg" className="bg-sky-600 hover:bg-sky-700 font-semibold shadow-lg">
-              <Link href="/gallery">
-                <ImageIcon className="h-5 w-5 mr-2" />
-                View Full Gallery
-              </Link>
-            </Button>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* PROMOTED FORMS - Register Now */}
-      {(!loadingPromoted && promoted.length > 0) && (
-        <section className="bg-gradient-to-b from-white to-sky-50/60 py-16 sm:py-20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="text-center mb-12"
-            >
-              <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-                Register Now
-              </h2>
-              <p className="mt-3 text-lg text-slate-700">
-                Sign up for upcoming programs and activities
-              </p>
-            </motion.div>
-
-            {promotedError && (
-              <div className="mb-6 rounded border border-red-200 bg-red-50 p-4 text-red-700 text-center">
-                {promotedError}
+          {/* Desktop Grid */}
+          <div className="hidden sm:grid grid-cols-3 lg:grid-cols-4 gap-4">
+            {featuredGalleryImages.map((img, i) => (
+              <div key={i} className={`relative rounded-xl overflow-hidden shadow-md aspect-square ${i === 0 ? 'col-span-2 row-span-2' : ''}`}>
+                <Image src={img.src} alt={img.label} fill className="object-cover hover:scale-110 transition-transform duration-500" />
               </div>
-            )}
-
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {promoted.map((form, i) => (
-                <motion.div
-                  key={form.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: i * 0.1 }}
-                >
-                  <Card className="overflow-hidden h-full hover:shadow-lg transition-shadow">
-                    {form.imageUrl && (
-                      <div className="relative h-48 w-full overflow-hidden">
-                        <Image
-                          src={form.imageUrl}
-                          alt={form.title}
-                          fill
-                          sizes="(max-width: 768px) 100vw, 33vw"
-                          className="object-cover"
-                        />
-                      </div>
-                    )}
-                    <CardHeader className="pb-3">
-                      <CardTitle className="line-clamp-2 text-slate-900">{form.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {form.description && (
-                        <p className="mb-4 line-clamp-3 text-slate-700">{form.description}</p>
-                      )}
-                      <Button asChild size="md" className="w-full bg-sky-600 text-white hover:bg-sky-700">
-                        <Link href={`/forms/${form.id}`}>Register</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
+            ))}
           </div>
-        </section>
-      )}
-
-      {/* 6. JOIN US AT */}
-      <section className="bg-gradient-to-b from-sky-50/60 to-amber-50/60 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              Join Us
-            </h2>
-            <p className="mt-3 text-lg text-slate-700">
-              Be part of our vibrant community of faith
-            </p>
-          </motion.div>
-
-          <div className="grid gap-8 md:grid-cols-2 max-w-4xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <Card className="p-8 bg-white shadow-lg border-l-4 border-l-amber-500 h-full">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="p-3 bg-amber-100 rounded-lg">
-                    <MapPin className="h-6 w-6 text-amber-700" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">Location</h3>
-                    <p className="text-slate-700 mb-3">
-                      Jeevan Darshan Kendra, Grirz<br />
-                      Vasai, Maharashtra
-                    </p>
-                    <Link 
-                      href="https://maps.app.goo.gl/q2GgBCUyaGfCgj7RA" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-amber-600 hover:text-amber-700 hover:underline"
-                    >
-                      <MapPin className="h-4 w-4" />
-                      View on Google Maps
-                    </Link>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              <Card className="p-8 bg-white shadow-lg border-l-4 border-l-sky-500 h-full">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="p-3 bg-sky-100 rounded-lg">
-                    <Clock className="h-6 w-6 text-sky-700" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">Meeting Times</h3>
-                    <p className="text-slate-700">
-                      Every Monday 7:00pm - 9:00pm<br />
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="mt-10 text-center"
-          >
-            <Button asChild size="lg" className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold shadow-lg">
-              <Link href="/join">Get Involved Today</Link>
-            </Button>
-          </motion.div>
         </div>
       </section>
 
-      {/* 7. FOLLOW US - Social Media */}
-      <section className="bg-gradient-to-b from-amber-50/60 to-slate-900 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              Stay Connected
-            </h2>
-            <p className="mt-3 text-lg text-slate-700">
-              Follow us on social media for updates, photos, and inspiration
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto"
-          >
-            <Button
-              asChild
-              size="lg"
-              className="h-auto py-6 bg-gradient-to-r from-pink-500 to-amber-400 text-white hover:from-pink-600 hover:to-amber-500 shadow-xl"
-            >
-              <Link
-                href="https://www.instagram.com/cyp.vasai/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col items-center gap-3"
-              >
-                <FaInstagram className="h-10 w-10" />
-                <div>
-                  <div className="font-bold">CYP Vasai</div>
-                  <div className="text-sm opacity-90">@cyp.vasai</div>
-                </div>
-              </Link>
-            </Button>
-
-            <Button
-              asChild
-              size="lg"
-              className="h-auto py-6 bg-gradient-to-r from-pink-500 to-amber-400 text-white hover:from-pink-600 hover:to-amber-500 shadow-xl"
-            >
-              <Link
-                href="https://www.instagram.com/cyp.youngprofessionals/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col items-center gap-3"
-              >
-                <FaInstagram className="h-10 w-10" />
-                <div>
-                  <div className="font-bold">Young Professionals</div>
-                  <div className="text-sm opacity-90">@cyp.youngprofessionals</div>
-                </div>
-              </Link>
-            </Button>
-
-            <Button
-              asChild
-              size="lg"
-              className="h-auto py-6 bg-red-600 text-white hover:bg-red-700 shadow-xl"
-            >
-              <Link
-                href="https://www.youtube.com/@cyp-vasai"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col items-center gap-3"
-              >
-                <FaYoutube className="h-10 w-10" />
-                <div>
-                  <div className="font-bold">YouTube</div>
-                  <div className="text-sm opacity-90">@cyp-vasai</div>
-                </div>
-              </Link>
-            </Button>
-          </motion.div>
+      {/* 8. FOOTER CTA */}
+      <section className="py-20 text-center px-4" style={{ backgroundColor: theme.background }}>
+        <h2 className="text-3xl font-bold mb-6" style={{ color: theme.textBright }}>Ready to make a difference?</h2>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button asChild size="lg" className="font-bold h-14 px-8 rounded-xl hover:opacity-90 transition-opacity" style={{ backgroundColor: theme.primary, color: theme.background }}>
+            <Link href="/join">Join Us Today</Link>
+          </Button>
+          <div className="flex gap-4 justify-center mt-4 sm:mt-0">
+            <a href="https://www.instagram.com/cyp.vasai/" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 p-4 rounded-xl transition-colors group" style={{ backgroundColor: `${theme.textBright}20`, color: theme.textBright }} aria-label="CYP Vasai Instagram" title="Follow CYP Vasai on Instagram">
+              <FaInstagram className="w-6 h-6" />
+              <span className="text-xs font-medium opacity-80 group-hover:opacity-100">@cyp.vasai</span>
+            </a>
+            <a href="https://www.instagram.com/cyp.youngprofessionals/" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 p-4 rounded-xl transition-colors group" style={{ backgroundColor: `${theme.textBright}20`, color: theme.textBright }} aria-label="Young Professionals Instagram" title="Follow Young Professionals on Instagram">
+              <FaInstagram className="w-6 h-6" />
+              <span className="text-xs font-medium opacity-80 group-hover:opacity-100">@cyp.yp</span>
+            </a>
+            <a href="https://www.youtube.com/@cyp-vasai" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 p-4 rounded-xl transition-colors group" style={{ backgroundColor: `${theme.textBright}20`, color: theme.textBright }} aria-label="CYP Vasai YouTube" title="Subscribe to CYP Vasai on YouTube">
+              <FaYoutube className="w-6 h-6" />
+              <span className="text-xs font-medium opacity-80 group-hover:opacity-100">@cyp-vasai</span>
+            </a>
+          </div>
         </div>
       </section>
     </main>
