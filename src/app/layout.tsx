@@ -6,24 +6,28 @@ import Script from "next/script";
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.cypvasai.org'),
+
+  // Optimized Title and Description (from previous step)
   title: {
-    default: 'Christian Youth in Power (CYP) Vasai',
+    default: 'Catholic Youth Group Vasai | Christian Youth in Power (CYP)',
     template: '%s | CYP Vasai',
   },
-  description: 'Christian Youth in Power (CYP) Vasai - Empowering young Catholics through faith, community, and service. Join us every Monday at 7 PM at Jeevan Darshan Kendra, Giriz.',
+  description: 'Christian Youth in Power (CYP) Vasai: Empowering young Catholics in Vasai-Virar through faith, community, service, and youth ministry. Join our main prayer group every Monday at 7 PM in Giriz.',
   keywords: [
+    'Catholic Youth Group Vasai',
+    'Christian Youth in Power Vasai',
+    'CYP Vasai',
+    'Youth Ministry Vasai',
+    'Catholic Youth Retreats',
+    'Vasai Church Youth Group',
+    'Faith Formation Vasai',
+    'Young Adult Ministry Vasai',
+    'Christian Events Vasai-Virar',
+    'CYP',
+    'Prayer Group Vasai',
     'Christian Youth',
     'Catholic Youth',
-    'CYP Vasai',
-    'Christian Youth in Power',
-    'Youth Ministry',
-    'Catholic Community',
-    'Vasai Church',
-    'Young Catholics',
-    'Faith Formation',
-    'Youth Group',
-    'Christian Events',
-    'Prayer Group',
+    'Catholic Community Vasai',
   ],
   authors: [{ name: 'Christian Youth in Power Vasai' }],
   creator: 'Christian Youth in Power Vasai',
@@ -36,10 +40,10 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_IN',
-    url: 'https://www.cypvasai.org',
+    url: 'https://www.cypvasai.org', 
     siteName: 'Christian Youth in Power Vasai',
-    title: 'Christian Youth in Power (CYP) Vasai',
-    description: 'Empowering young Catholics through faith, community, and service. Join us every Monday at 7 PM.',
+    title: 'Catholic Youth Group Vasai | Christian Youth in Power (CYP)',
+    description: 'Empowering young Catholics in Vasai-Virar through faith, community, and service. Join us every Monday at 7 PM.',
     images: [
       {
         url: '/cyplogo_circle.png',
@@ -51,8 +55,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'Christian Youth in Power (CYP) Vasai',
-    description: 'Empowering young Catholics through faith, community, and service.',
+    title: 'Catholic Youth Group Vasai | Christian Youth in Power (CYP)',
+    description: 'Empowering young Catholics in Vasai-Virar through faith, community, and service.',
     images: ['/cyplogo_circle.png'],
   },
   robots: {
@@ -66,14 +70,14 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+  // *** PLACEHOLDER FOR GOOGLE VERIFICATION CODE ***
   verification: {
-    // Add your verification codes when available
-    // google: 'your-google-verification-code',
-    // yandex: 'your-yandex-verification-code',
-    // bing: 'your-bing-verification-code',
+    // 1. Get the code (the content value) from Google Search Console
+    // 2. Uncomment the line below and replace 'YOUR_UNIQUE_CODE'
+    // google: 'YOUR_UNIQUE_CODE', 
   },
   alternates: {
-    canonical: 'https://www.cypvasai.org',
+    canonical: 'https://www.cypvasai.org', 
   },
   category: 'Religion & Spirituality',
 };
@@ -90,6 +94,8 @@ export default function RootLayout({
         <link rel="icon" href="/cyplogo_circle.png" />
         <link rel="apple-touch-icon" href="/cyplogo_circle.png" />
         <meta name="theme-color" content="#FB923C" />
+        
+        {/* UPDATED SCHEMA.ORG WITH SOCIAL LINKS */}
         <Script
           id="schema-org"
           type="application/ld+json"
@@ -130,8 +136,11 @@ export default function RootLayout({
                   },
                 },
               },
+              // *** ADDED SOCIAL MEDIA LINKS HERE ***
               sameAs: [
-                // Add your social media URLs here when available
+                'https://www.youtube.com/@cyp-vasai',
+                'https://www.instagram.com/cyp.youngprofessionals/',
+                'https://www.instagram.com/cyp.vasai/',
               ],
             }),
           }}

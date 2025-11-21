@@ -62,7 +62,7 @@ const verses = [
 const faqs = [
   { question: "Who can join CYP?", answer: "Any youth regardless of background is welcome! We typically serve ages 15-35." },
   { question: "Is there a membership fee?", answer: "No, joining our weekly fellowship is completely free." },
-  { question: "Do I need to be Catholic?", answer: "While we are a predominantly a Catholic outreach, we welcome youth from all denominations and backgrounds." },
+  { question: "Do I need to be Catholic?", answer: "While we are predominantly a Catholic outreach, we welcome youth from all denominations and backgrounds." },
   { question: "Where do I start?", answer: "Just show up to our Monday fellowship at 7 PM! No prior registration needed." },
 ];
 
