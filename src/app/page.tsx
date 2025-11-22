@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     description: "A vibrant Catholic youth community empowering young people through faith, fellowship, and service.",
     url: "https://www.cypvasai.org",
   },
+  alternates: {
+    canonical: "https://www.cypvasai.org",
+  },
 };
 
 export default function Home() {
