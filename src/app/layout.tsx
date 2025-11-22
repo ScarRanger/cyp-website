@@ -3,6 +3,7 @@ import "./globals.css";
 import Header from "./components/Header";
 import { CartProvider } from "./providers/CartProvider";
 import Script from "next/script";
+import { s } from "framer-motion/client";
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.cypvasai.org'),
@@ -106,13 +107,15 @@ export default function RootLayout({
               name: 'Christian Youth in Power Vasai',
               alternateName: 'CYP Vasai',
               url: 'https://www.cypvasai.org',
-              logo: 'https://www.cypvasai.org/cyplogo_circle.png',
+              logo: 'https://www.cypvasai.org/cyp-schema-logo.png',
               description: 'Catholic youth organization empowering young people through faith, community, and service in Vasai',
               address: {
                 '@type': 'PostalAddress',
                 addressLocality: 'Vasai',
                 addressRegion: 'Maharashtra',
                 addressCountry: 'IN',
+                postalCode: '401201',
+                streetAddress: '9QCR+W55, Giriz Rd, Nardoli Gaon, Vasai West, Giriz, Vasai-Virar, Maharashtra 401201',
               },
               event: {
                 '@type': 'Event',

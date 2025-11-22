@@ -309,6 +309,11 @@ export default function HomePage() {
 
   return (
     <main className="overflow-x-hidden relative" style={{ backgroundColor: theme.background }}>
+      {/* SEO Description - Hidden text for search engines */}
+      <div className="sr-only" aria-hidden="true">
+        Christian Youth in Power (CYP) Vasai: Empowering young Catholics in Vasai-Virar through faith, community, service, and youth ministry.
+      </div>
+
       {/* Paper Texture Overlay */}
       <div 
         className="fixed inset-0 pointer-events-none opacity-[0.03] z-0"
@@ -470,9 +475,9 @@ END:VCALENDAR`;
             </div>
             <div>
               <h3 className="font-bold" style={{ color: theme.textBright }}>Jeevan Darshan Kendra</h3>
-              <Link href="https://maps.app.goo.gl/q2GgBCUyaGfCgj7RA" className="text-sm font-medium flex items-center gap-1 hover:opacity-80 transition-opacity" style={{ color: theme.primary }}>
+              <a href="https://maps.app.goo.gl/q2GgBCUyaGfCgj7RA" target="_blank" rel="noopener noreferrer" className="text-sm font-medium flex items-center gap-1 hover:opacity-80 transition-opacity" style={{ color: theme.primary }}>
                 Get Directions <ArrowRight className="w-3 h-3" />
-              </Link>
+              </a>
             </div>
           </div>
         </div>
@@ -524,7 +529,7 @@ END:VCALENDAR`;
                           {/* Gradient Overlay */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                         </div>
-                        <CardContent className="p-5 relative">
+                        <CardContent className="p-5 relative pt-6">
                           <h3 className="font-bold text-lg line-clamp-1 mb-2" style={{ color: theme.textBright }}>{event.title}</h3>
                           <p className="text-sm line-clamp-2 mb-4" style={{ color: theme.text, opacity: 0.7 }}>{event.shortDescription || "Join us for this amazing event!"}</p>
                           <div className="flex items-center justify-between">
@@ -568,7 +573,7 @@ END:VCALENDAR`;
                         {/* Gradient Overlay */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                       </div>
-                      <CardContent className="p-6 relative">
+                      <CardContent className="p-6 relative pt-7">
                         <div className="text-xs font-bold mb-2 uppercase tracking-wide" style={{ color: theme.primary }}>
                           {event.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                         </div>
