@@ -14,7 +14,7 @@ const navItems = [
   { href: "/talks", label: "Talks" },
   // { href: "/about", label: "About" },
   { href: "/join", label: "Join Us" },
-  // { href: "/contact", label: "Contact" },
+  { href: "/fundraiser", label: "Our Store" },
 ];
 
 export default function Header() {

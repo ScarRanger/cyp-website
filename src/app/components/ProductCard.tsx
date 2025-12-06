@@ -5,6 +5,14 @@ import type { Product } from "../types/product";
 import { Button } from "./ui/button";
 import { useRef } from "react";
 
+const theme = {
+  background: '#1C1917',
+  surface: '#1C1917',
+  primary: '#FB923C',
+  text: '#FAFAFA',
+  border: '#FB923C30',
+};
+
 type Props = {
   product: Product;
 };
@@ -46,11 +54,11 @@ export default function ProductCard({ product }: Props) {
       <div className="mt-1 flex items-baseline gap-1.5">
         {hasCompare ? (
           <>
-            <span className="text-slate-400 line-through text-xs">₹{product.compareAtPrice}</span>
-            <span className="text-base font-semibold text-sky-700">₹{product.price}</span>
+            <span className="text-xs line-through" style={{ color: theme.text, opacity: 0.5 }}>₹{product.compareAtPrice}</span>
+            <span className="text-base font-semibold" style={{ color: theme.primary }}>₹{product.price}</span>
           </>
         ) : (
-          <span className="text-base font-semibold text-sky-700">₹{product.price}</span>
+          <span className="text-base font-semibold" style={{ color: theme.primary }}>₹{product.price}</span>
         )}
       </div>
     );
@@ -87,18 +95,20 @@ export default function ProductCard({ product }: Props) {
   return (
     <>
       <div
-        className="relative border rounded-md overflow-hidden bg-white shadow-sm hover:shadow-md transition cursor-pointer"
+        className="relative border rounded-md overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer"
+        style={{ backgroundColor: theme.surface, borderColor: theme.border }}
         onClick={() => setOpen(true)}
       >
-        <div className="aspect-square w-full bg-slate-50 overflow-hidden">
+        <div className="aspect-square w-full overflow-hidden" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
           <img ref={imgRef} src={images[idx]} alt={product.title} className="h-full w-full object-cover" />
         </div>
         <div className="p-3">
-          <h3 className="font-semibold text-slate-900 line-clamp-1 text-sm">{product.title}</h3>
-          <p className="text-xs text-slate-600 line-clamp-2 mt-0.5">{product.description}</p>
+          <h3 className="font-semibold line-clamp-1 text-sm" style={{ color: theme.text }}>{product.title}</h3>
+          <p className="text-xs line-clamp-2 mt-0.5" style={{ color: theme.text, opacity: 0.7 }}>{product.description}</p>
           {priceSection}
           <Button
-            className={`mt-2 w-full ${added ? "bg-green-600 hover:bg-green-700" : ""}`}
+            className="mt-2 w-full"
+            style={{ backgroundColor: added ? '#10b981' : theme.primary, color: theme.background }}
             size="sm"
             disabled={!product.inStock}
             onClick={(e) => {
@@ -125,12 +135,13 @@ export default function ProductCard({ product }: Props) {
           <div className="absolute inset-0 bg-black/60" />
           <div className="absolute inset-0 overflow-y-auto">
             <div className="min-h-full flex items-center justify-center p-4">
-              <div className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:rounded-lg bg-white shadow-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:rounded-lg shadow-lg" style={{ backgroundColor: theme.surface }} onClick={(e) => e.stopPropagation()}>
                 <div className="grid sm:grid-cols-2 h-full">
-                  <div className="relative bg-slate-50 flex items-center justify-center aspect-square sm:aspect-auto">
+                  <div className="relative flex items-center justify-center aspect-square sm:aspect-auto" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
                     <button
                       aria-label="Close"
-                      className="absolute top-2 right-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow hover:bg-white"
+                      className="absolute top-2 right-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full shadow"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.9)', color: theme.background }}
                       onClick={(e) => {
                         e.stopPropagation();
                         setOpen(false);
@@ -140,7 +151,8 @@ export default function ProductCard({ product }: Props) {
                     </button>
                     <button
                       aria-label="Previous image"
-                      className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white/80 text-slate-800 shadow hover:bg-white"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full shadow"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.8)', color: theme.background }}
                       onClick={(e) => {
                         e.stopPropagation();
                         setIdx((v) => (v - 1 + images.length) % images.length);
@@ -151,7 +163,8 @@ export default function ProductCard({ product }: Props) {
                     <img src={images[idx]} alt={product.title} className="max-h-[70vh] w-full object-contain" />
                     <button
                       aria-label="Next image"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white/80 text-slate-800 shadow hover:bg-white"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full shadow"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.8)', color: theme.background }}
                       onClick={(e) => {
                         e.stopPropagation();
                         setIdx((v) => (v + 1) % images.length);
@@ -161,11 +174,12 @@ export default function ProductCard({ product }: Props) {
                     </button>
                   </div>
                   <div className="p-4 sm:p-6 overflow-y-auto">
-                    <h2 className="text-lg sm:text-xl font-semibold text-slate-900">{product.title}</h2>
-                    <p className="text-sm text-slate-600 mt-2 whitespace-pre-line">{product.description}</p>
+                    <h2 className="text-lg sm:text-xl font-semibold" style={{ color: theme.text }}>{product.title}</h2>
+                    <p className="text-sm mt-2 whitespace-pre-line" style={{ color: theme.text, opacity: 0.8 }}>{product.description}</p>
                     <div className="mt-3">{priceSection}</div>
                     <Button
-                      className={`mt-4 w-full ${added ? "bg-green-600 hover:bg-green-700" : ""}`}
+                      className="mt-4 w-full"
+                      style={{ backgroundColor: added ? '#10b981' : theme.primary, color: theme.background }}
                       disabled={!product.inStock}
                       onClick={(e) => {
                         e.stopPropagation();
