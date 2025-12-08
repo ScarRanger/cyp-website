@@ -100,6 +100,12 @@ export default function ProductCard({ product }: Props) {
         className="relative border rounded-md overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer"
         style={{ backgroundColor: theme.surface, borderColor: theme.border }}
         onClick={() => {
+          // Check if it's a lottery product
+          if ((product as any).isLottery) {
+            window.location.href = '/lottery';
+            return;
+          }
+          
           setOpen(true);
           if (product.hasVariants && product.variants && product.variants.length > 0) {
             setShowVariants(true);
@@ -120,6 +126,13 @@ export default function ProductCard({ product }: Props) {
             disabled={!product.inStock}
             onClick={(e) => {
               e.stopPropagation();
+              
+              // Check if it's a lottery product
+              if ((product as any).isLottery) {
+                window.location.href = '/lottery';
+                return;
+              }
+              
               if (product.hasVariants && product.variants && product.variants.length > 0) {
                 setShowVariants(true);
                 setOpen(true);
@@ -132,7 +145,7 @@ export default function ProductCard({ product }: Props) {
               }
             }}
           >
-            {product.inStock ? (added ? "Added" : product.hasVariants ? "Select Design" : "Add to Cart") : "Out of Stock"}
+            {product.inStock ? (added ? "Added" : (product as any).isLottery ? "Buy Ticket" : product.hasVariants ? "Select Design" : "Add to Cart") : "Out of Stock"}
           </Button>
         </div>
         <div

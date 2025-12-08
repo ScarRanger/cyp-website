@@ -3,7 +3,7 @@
 import React from 'react';
 import AuthGuard from '@/app/components/Auth/AuthGuard';
 import Link from 'next/link';
-import { Plus, List, Settings, Image as ImageIcon, Mic as MicIcon, CalendarDays as CalendarIcon } from 'lucide-react';
+import { Plus, List, Settings, Image as ImageIcon, Mic as MicIcon, CalendarDays as CalendarIcon, Ticket } from 'lucide-react';
 
 // Warm Espresso Theme Colors
 const theme = {
@@ -106,6 +106,20 @@ export default function AdminPage() {
                 </Link>
                 <Link href="/admin/events" className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-md font-medium transition-colors hover:bg-white/10 border" style={{ borderColor: theme.primary, color: theme.primary }}>
                   <List className="h-4 w-4" /> Manage
+                </Link>
+              </div>
+            </div>
+
+            {/* Lottery */}
+            <div className="border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
+              <div className="flex items-center mb-4">
+                <Ticket className="h-5 w-5 mr-2" style={{ color: theme.primary }} />
+                <h2 className="text-lg font-semibold" style={{ color: theme.text }}>Lottery</h2>
+              </div>
+              <p className="opacity-70 mb-4" style={{ color: theme.text }}>Manage lottery ticket orders and confirmations.</p>
+              <div className="flex gap-2">
+                <Link href="/admin/lottery" className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-md font-medium transition-colors hover:opacity-90" style={{ backgroundColor: theme.primary, color: '#1C1917' }}>
+                  <List className="h-4 w-4" /> Manage Orders
                 </Link>
               </div>
             </div>

@@ -272,6 +272,7 @@ export async function POST(request: NextRequest) {
               
               <div class="footer">
                 <p>Thank you for supporting CYP Vasai Fundraiser! 🎉</p>
+                <p style="margin-top: 10px; font-size: 14px; color: #666;">⚠️ Please check your junk or spam inbox as well if you don't see our emails.</p>
                 <p>For queries, contact: <strong>+91 8551098035</strong></p>
                 <p>Visit: <a href="https://cypvasai.org">cypvasai.org</a></p>
               </div>
