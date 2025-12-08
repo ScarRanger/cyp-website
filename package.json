@@ -14,10 +14,12 @@
     "@aws-sdk/s3-request-presigner": "^3.916.0",
     "@hookform/resolvers": "^5.2.2",
     "appwrite": "^21.2.1",
+    "dotenv": "^17.2.3",
     "firebase": "^12.4.0",
     "firebase-admin": "^13.5.0",
     "framer-motion": "^12.23.24",
     "googleapis": "^164.1.0",
+    "heic-convert": "^2.1.0",
     "hls": "^0.0.1",
     "hls.js": "^1.6.13",
     "lucide-react": "^0.546.0",
@@ -28,6 +30,7 @@
     "react-dom": "19.1.0",
     "react-hook-form": "^7.65.0",
     "react-icons": "^5.5.0",
+    "sharp": "^0.34.5",
     "zod": "^4.1.12"
   },
   "devDependencies": {
@@ -40,6 +43,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.6",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

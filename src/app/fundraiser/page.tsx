@@ -19,11 +19,13 @@ const theme = {
 
 export default function FundraiserPage() {
   const [items, setItems] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const { count, subtotal } = useCart();
 
   useEffect(() => {
     async function load() {
       try {
+        setLoading(true);
         const col = collection(db, "fundraiser_items");
         const qy = query(col);
         const snap = await getDocs(qy);
@@ -33,6 +35,8 @@ export default function FundraiserPage() {
         setItems(list);
       } catch {
         setItems([]);
+      } finally {
+        setLoading(false);
       }
     }
     load();
@@ -45,12 +49,42 @@ export default function FundraiserPage() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold" style={{ color: theme.text }}>Fundraiser Store</h1>
       </div>
+      
+      <div className="mb-6 p-6 rounded-lg border-2" style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)', borderColor: theme.primary }}>
+        <h2 className="text-lg font-bold mb-3" style={{ color: theme.primary }}>🎯 Supporting Our Mission</h2>
+        <p className="mb-2" style={{ color: theme.text, fontSize: '0.95rem' }}>
+          The funds raised from the sales will be used for:
+        </p>
+        <ul className="space-y-2 ml-4">
+          <li className="flex items-start gap-2" style={{ color: theme.text }}>
+            <span style={{ color: theme.primary }}>✓</span>
+            <span>CYP Works of Mercy & Charity</span>
+          </li>
+          <li className="flex items-start gap-2" style={{ color: theme.text }}>
+            <span style={{ color: theme.primary }}>✓</span>
+            <span>Evangelizing youth</span>
+          </li>
+          <li className="flex items-start gap-2" style={{ color: theme.text }}>
+            <span style={{ color: theme.primary }}>✓</span>
+            <span>Conducting retreats & youth camps</span>
+          </li>
+        </ul>
+      </div>
+
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {inStockItems.map((p) => (
-          <ProductCard key={p.id} product={p} />
-        ))}
-        {inStockItems.length === 0 && (
-          <div style={{ color: theme.text, opacity: 0.7 }}>No active listings at the moment.</div>
+        {loading ? (
+          <div className="col-span-full flex items-center justify-center py-20" style={{ color: theme.text }}>
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-solid border-current border-r-transparent mb-4" style={{ borderColor: theme.primary, borderRightColor: 'transparent' }}></div>
+              <p style={{ color: theme.text, opacity: 0.7 }}>Loading products...</p>
+            </div>
+          </div>
+        ) : inStockItems.length === 0 ? (
+          <div className="col-span-full text-center py-20" style={{ color: theme.text, opacity: 0.7 }}>No active listings at the moment.</div>
+        ) : (
+          inStockItems.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))
         )}
       </div>
 

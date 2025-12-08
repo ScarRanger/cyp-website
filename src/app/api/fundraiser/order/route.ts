@@ -26,10 +26,10 @@ const transporter = nodemailer.createTransport({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, phone, parish, paymentMode, items, subtotal } = body;
+    const { name, phone, email, parish, paymentMode, transactionId, items, subtotal } = body;
 
     // Validate required fields
-    if (!name || !phone || !parish || !paymentMode || !items || !subtotal) {
+    if (!name || !phone || !email || !parish || !paymentMode || !items || !subtotal) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -53,16 +53,16 @@ export async function POST(request: NextRequest) {
 
     // Prepare items summary
     const itemsSummary = items.map((item: any) => 
-      `${item.title} (Qty: ${item.qty}) - ₹${item.price * item.qty}`
+      `${item.title}${item.variant ? ` (${item.variant})` : ''} (Qty: ${item.qty}) - ₹${item.price * item.qty}`
     ).join(', ');
 
     // Prepare row data
-    const row = [timestamp, name, phone, parish, paymentMode, itemsSummary, `₹${subtotal}`];
+    const row = [timestamp, name, phone, email, parish, paymentMode, transactionId || 'N/A', itemsSummary, `₹${subtotal}`];
 
     // Append to sheet
     await sheets.spreadsheets.values.append({
       spreadsheetId: FUNDRAISER_SHEET_ID,
-      range: 'Preorders!A:G',
+      range: 'Preorders!A:I',
       valueInputOption: 'RAW',
       requestBody: {
         values: [row],
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
                   <tbody>
                     ${items.map((item: any) => `
                       <tr>
-                        <td>${item.title}</td>
+                        <td>${item.title}${item.variant ? ` <span style="color: #FB923C;">(${item.variant})</span>` : ''}</td>
                         <td>${item.qty}</td>
                         <td>₹${item.price}</td>
                         <td>₹${item.price * item.qty}</td>
@@ -178,6 +178,107 @@ export async function POST(request: NextRequest) {
     } catch (emailError) {
       console.error('Error sending email:', emailError);
       // Don't fail the entire request if email fails
+    }
+
+    // Send confirmation email to customer
+    try {
+      const customerEmailHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background-color: #FB923C; color: #1C1917; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+            .field { margin: 15px 0; padding: 10px; background-color: white; border-left: 4px solid #FB923C; }
+            .label { font-weight: bold; color: #FB923C; }
+            .value { margin-top: 5px; }
+            .items-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+            .items-table th, .items-table td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+            .items-table th { background-color: #FB923C; color: white; }
+            .total { font-size: 18px; font-weight: bold; color: #FB923C; margin-top: 20px; text-align: right; }
+            .highlight-box { background-color: #fff3e0; padding: 15px; border-radius: 8px; margin: 20px 0; border: 2px solid #FB923C; }
+            .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>✅ Order Confirmation</h1>
+            </div>
+            <div class="content">
+              <p>Dear ${name},</p>
+              <p>Thank you for your order! We have received your order details and will process it shortly.</p>
+              
+              <div class="field">
+                <div class="label">Order Details:</div>
+              </div>
+              
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${items.map((item: any) => `
+                    <tr>
+                      <td>${item.title}${item.variant ? ` <span style="color: #FB923C;">(${item.variant})</span>` : ''}</td>
+                      <td>${item.qty}</td>
+                      <td>₹${item.price}</td>
+                      <td>₹${item.price * item.qty}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+              
+              <div class="total">
+                Total Amount: ₹${subtotal}
+              </div>
+
+              <div class="field">
+                <div class="label">Payment Mode:</div>
+                <div class="value">${paymentMode}${transactionId ? ` (Transaction ID: ${transactionId})` : ''}</div>
+              </div>
+              
+              <div class="highlight-box">
+                <p><strong>📦 For Delivery:</strong></p>
+                <p>Please contact us at <strong style="color: #FB923C;">+91 8551098035</strong> to arrange delivery of your order.</p>
+              </div>
+
+              <div class="field">
+                <div class="label">Order Time:</div>
+                <div class="value">${timestamp}</div>
+              </div>
+              
+              <div class="footer">
+                <p>Thank you for supporting CYP Vasai Fundraiser! 🎉</p>
+                <p>For queries, contact: <strong>+91 8551098035</strong></p>
+                <p>Visit: <a href="https://cypvasai.org">cypvasai.org</a></p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      await transporter.sendMail({
+        from: `"CYP Fundraiser" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: `Order Confirmation - CYP Fundraiser`,
+        html: customerEmailHtml,
+        text: `Dear ${name},\n\nThank you for your order!\n\nOrder Details:\n${items.map((item: any) => 
+          `${item.title} - Qty: ${item.qty} - ₹${item.price * item.qty}`
+        ).join('\n')}\n\nTotal: ₹${subtotal}\nPayment Mode: ${paymentMode}${transactionId ? ` (Transaction ID: ${transactionId})` : ''}\n\nFor delivery, please contact us at +91 8551098035\n\nOrder Time: ${timestamp}\n\nThank you for supporting CYP Vasai Fundraiser!\nFor queries, contact: +91 8551098035\nVisit: cypvasai.org`,
+      });
+
+      console.log('Customer confirmation email sent successfully');
+    } catch (emailError) {
+      console.error('Error sending customer confirmation email:', emailError);
     }
 
     return NextResponse.json(

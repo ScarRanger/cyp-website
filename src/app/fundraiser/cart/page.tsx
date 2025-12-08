@@ -20,6 +20,7 @@ export default function CartPage() {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
+    email: '',
     parish: '',
     paymentMode: '',
     transactionId: '',
@@ -39,6 +40,11 @@ export default function CartPage() {
     setFormData(prev => ({ ...prev, paymentMode: mode }));
   };
 
+  const copyUpiId = () => {
+    navigator.clipboard.writeText('dabrecarren10-2@oksbi');
+    alert('UPI ID copied to clipboard!');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -47,10 +53,11 @@ export default function CartPage() {
     try {
       const orderData = {
         ...formData,
-        items: items.map(({ product, qty }) => ({
+        items: items.map(({ product, qty, selectedVariant }) => ({
           title: product.title,
           price: product.price,
           qty: qty,
+          variant: selectedVariant?.name,
         })),
         subtotal: subtotal,
       };
@@ -64,8 +71,8 @@ export default function CartPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setSubmitMessage('Order placed successfully! We will contact you soon. 🎉');
-        setFormData({ name: '', phone: '', parish: '', paymentMode: '', transactionId: '' });
+        setSubmitMessage('Order placed successfully! Check your email for confirmation. 🎉');
+        setFormData({ name: '', phone: '', email: '', parish: '', paymentMode: '', transactionId: '' });
         setTimeout(() => {
           clearCart();
           router.push('/fundraiser');
@@ -93,9 +100,13 @@ export default function CartPage() {
         <div className="mb-6 p-4 rounded-lg border" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
           <h2 className="font-semibold mb-2" style={{ color: theme.text }}>Order Summary</h2>
           <div className="space-y-1 text-sm" style={{ color: theme.text }}>
-            {items.map(({ product, qty }) => (
-              <div key={product.id} className="flex justify-between">
-                <span>{product.title} x {qty}</span>
+            {items.map(({ product, qty, selectedVariant }) => (
+              <div key={`${product.id}-${selectedVariant?.id || 'default'}`} className="flex justify-between">
+                <span>
+                  {product.title}
+                  {selectedVariant && ` - ${selectedVariant.name}`}
+                  {' x '}{qty}
+                </span>
                 <span>₹{(product.price * qty).toFixed(2)}</span>
               </div>
             ))}
@@ -137,6 +148,23 @@ export default function CartPage() {
               className="w-full px-4 py-2 rounded-lg border bg-white/5 focus:outline-none transition-colors"
               style={{ borderColor: theme.border, color: theme.text }}
               placeholder="+91 1234567890"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium mb-2" style={{ color: theme.text }}>
+              Email *
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              required
+              value={formData.email}
+              onChange={handleChange}
+              className="w-full px-4 py-2 rounded-lg border bg-white/5 focus:outline-none transition-colors"
+              style={{ borderColor: theme.border, color: theme.text }}
+              placeholder="your@email.com"
             />
           </div>
 
@@ -193,6 +221,22 @@ export default function CartPage() {
 
           {formData.paymentMode === 'UPI' && (
             <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgba(251, 146, 60, 0.05)', borderColor: theme.border }}>
+              <div className="mb-4 p-3 rounded-lg border" style={{ borderColor: theme.border, backgroundColor: 'rgba(251, 146, 60, 0.08)' }}>
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs mb-1" style={{ color: theme.text, opacity: 0.7 }}>UPI ID</div>
+                    <div className="font-mono font-semibold" style={{ color: theme.primary }}>dabrecarren10-2@oksbi</div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={copyUpiId}
+                    style={{ backgroundColor: theme.primary, color: theme.background }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </div>
               <div className="text-center mb-3">
                 <p className="font-semibold mb-2" style={{ color: theme.text }}>Scan QR Code to Pay</p>
                 <div className="p-4 inline-block rounded-lg" style={{ backgroundColor: 'white' }}>
@@ -226,17 +270,23 @@ export default function CartPage() {
           )}
 
           {submitMessage && (
-            <div className={`p-3 rounded-lg text-sm ${
+            <div className={`p-3 rounded-lg text-sm font-medium ${
               submitMessage.includes('successfully') 
-                ? 'bg-green-500/20 border border-green-500/30 text-green-900' 
-                : 'bg-red-500/20 border border-red-500/30 text-red-900'
-            }`}>
+                ? 'bg-green-500/20 border border-green-500/30' 
+                : 'bg-red-500/20 border border-red-500/30'
+            }`} style={{ 
+              color: submitMessage.includes('successfully') ? '#22c55e' : '#ef4444'
+            }}>
               {submitMessage}
             </div>
           )}
 
           <div className="text-sm p-3 rounded-lg" style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)', color: theme.text }}>
             For queries, contact: <strong style={{ color: theme.primary }}>+91 8551098035</strong>
+          </div>
+
+          <div className="text-sm p-3 rounded-lg text-center" style={{ backgroundColor: 'rgba(251, 146, 60, 0.05)', borderColor: theme.border, color: theme.text }}>
+            You will receive a confirmation email of your order
           </div>
 
           <Button
@@ -265,11 +315,18 @@ export default function CartPage() {
         <div style={{ color: theme.text, opacity: 0.7 }}>Your cart is empty.</div>
       ) : (
         <div className="space-y-4">
-          {items.map(({ product, qty }) => (
-            <div key={product.id} className="flex gap-3 border rounded-md p-3" style={{ borderColor: theme.border, backgroundColor: theme.surface }}>
-              <img src={product.images[0]} alt={product.title} className="h-20 w-20 object-cover rounded" />
+          {items.map(({ product, qty, selectedVariant }) => (
+            <div key={`${product.id}-${selectedVariant?.id || 'default'}`} className="flex gap-3 border rounded-md p-3" style={{ borderColor: theme.border, backgroundColor: theme.surface }}>
+              <img 
+                src={selectedVariant?.images[0] || product.images[0]} 
+                alt={product.title} 
+                className="h-20 w-20 object-cover rounded" 
+              />
               <div className="flex-1">
-                <div className="font-medium" style={{ color: theme.text }}>{product.title}</div>
+                <div className="font-medium" style={{ color: theme.text }}>
+                  {product.title}
+                  {selectedVariant && <span style={{ color: theme.primary }}> - {selectedVariant.name}</span>}
+                </div>
                 <div className="text-sm line-clamp-2" style={{ color: theme.text, opacity: 0.7 }}>{product.description}</div>
                 <div className="mt-1" style={{ color: theme.primary }}>₹{product.price}</div>
                 <div className="mt-2 flex items-center gap-2">
@@ -277,7 +334,7 @@ export default function CartPage() {
                     variant="outline"
                     size="sm"
                     aria-label="Decrease quantity"
-                    onClick={() => updateQty(product.id, Math.max(1, qty - 1))}
+                    onClick={() => updateQty(product.id, Math.max(1, qty - 1), selectedVariant?.id)}
                   >
                     −
                   </Button>
@@ -288,11 +345,11 @@ export default function CartPage() {
                     variant="outline"
                     size="sm"
                     aria-label="Increase quantity"
-                    onClick={() => updateQty(product.id, qty + 1)}
+                    onClick={() => updateQty(product.id, qty + 1, selectedVariant?.id)}
                   >
                     +
                   </Button>
-                  <Button variant="outline" onClick={() => removeFromCart(product.id)}>Remove</Button>
+                  <Button variant="outline" onClick={() => removeFromCart(product.id, selectedVariant?.id)}>Remove</Button>
                 </div>
               </div>
             </div>
@@ -305,6 +362,9 @@ export default function CartPage() {
                 Checkout
               </Button>
             </div>
+          </div>
+          <div className="text-sm p-3 rounded-lg" style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)', color: theme.text }}>
+            For delivery please reach us out at <a href="https://wa.me/918551098035" target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80" style={{ color: theme.primary }}>+91 8551098035</a> after placing the order.
           </div>
         </div>
       )}

@@ -1,19 +1,20 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { Product } from "../types/product";
+import type { Product, ProductVariant } from "../types/product";
 import * as safeStorage from "@/app/lib/safeStorage";
 
 export type CartItem = {
   product: Product;
   qty: number;
+  selectedVariant?: ProductVariant;
 };
 
 type CartContextValue = {
   items: CartItem[];
-  addToCart: (product: Product, qty?: number) => void;
-  removeFromCart: (productId: string) => void;
-  updateQty: (productId: string, qty: number) => void;
+  addToCart: (product: Product, qty?: number, variant?: ProductVariant) => void;
+  removeFromCart: (productId: string, variantId?: string) => void;
+  updateQty: (productId: string, qty: number, variantId?: string) => void;
   clearCart: () => void;
   count: number;
   subtotal: number;
@@ -42,24 +43,33 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [items]);
 
-  const addToCart = (product: Product, qty: number = 1) => {
+  const addToCart = (product: Product, qty: number = 1, variant?: ProductVariant) => {
     setItems((prev) => {
-      const idx = prev.findIndex((i) => i.product.id === product.id);
+      const idx = prev.findIndex((i) => 
+        i.product.id === product.id && 
+        i.selectedVariant?.id === variant?.id
+      );
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], qty: next[idx].qty + qty };
         return next;
       }
-      return [...prev, { product, qty }];
+      return [...prev, { product, qty, selectedVariant: variant }];
     });
   };
 
-  const removeFromCart = (productId: string) => {
-    setItems((prev) => prev.filter((i) => i.product.id !== productId));
+  const removeFromCart = (productId: string, variantId?: string) => {
+    setItems((prev) => prev.filter((i) => 
+      !(i.product.id === productId && i.selectedVariant?.id === variantId)
+    ));
   };
 
-  const updateQty = (productId: string, qty: number) => {
-    setItems((prev) => prev.map((i) => (i.product.id === productId ? { ...i, qty } : i)));
+  const updateQty = (productId: string, qty: number, variantId?: string) => {
+    setItems((prev) => prev.map((i) => 
+      (i.product.id === productId && i.selectedVariant?.id === variantId) 
+        ? { ...i, qty } 
+        : i
+    ));
   };
 
   const clearCart = () => setItems([]);
@@ -72,12 +82,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     function handler(e: Event) {
-      const ce = e as CustomEvent<Product | { product: Product; qty?: number }>;
+      const ce = e as CustomEvent<Product | { product: Product; qty?: number; variant?: ProductVariant }>;
       const detail: any = ce.detail;
       if (!detail) return;
       const product = (detail.product ?? detail) as Product;
       const qty = detail.qty ?? 1;
-      if (product && product.id) addToCart(product, qty);
+      const variant = detail.variant;
+      if (product && product.id) addToCart(product, qty, variant);
     }
     if (typeof window !== "undefined") {
       window.addEventListener("add-to-cart", handler as EventListener);

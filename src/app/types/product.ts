@@ -1,3 +1,9 @@
+export type ProductVariant = {
+  id: string;
+  name: string;
+  images: string[];
+};
+
 export type Product = {
   id: string;
   title: string;
@@ -7,4 +13,6 @@ export type Product = {
   compareAtPrice?: number;
   inStock: boolean;
   active?: boolean;
+  hasVariants?: boolean;
+  variants?: ProductVariant[];
 };

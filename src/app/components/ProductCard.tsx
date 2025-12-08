@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import type { Product } from "../types/product";
+import type { Product, ProductVariant } from "../types/product";
 import { Button } from "./ui/button";
 import { useRef } from "react";
 
@@ -23,6 +23,8 @@ export default function ProductCard({ product }: Props) {
   const [added, setAdded] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [open, setOpen] = useState(false);
+  const [showVariants, setShowVariants] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
   useEffect(() => {
     if (open) return; // pause auto-rotate when overlay is open
@@ -113,14 +115,19 @@ export default function ProductCard({ product }: Props) {
             disabled={!product.inStock}
             onClick={(e) => {
               e.stopPropagation();
-              window.dispatchEvent(new CustomEvent("add-to-cart", { detail: product }));
-              flyToCart();
-              setAdded(true);
-              const t = setTimeout(() => setAdded(false), 1400);
-              return () => clearTimeout(t);
+              if (product.hasVariants && product.variants && product.variants.length > 0) {
+                setShowVariants(true);
+                setOpen(true);
+              } else {
+                window.dispatchEvent(new CustomEvent("add-to-cart", { detail: product }));
+                flyToCart();
+                setAdded(true);
+                const t = setTimeout(() => setAdded(false), 1400);
+                return () => clearTimeout(t);
+              }
             }}
           >
-            {product.inStock ? (added ? "Added" : "Add to Cart") : "Out of Stock"}
+            {product.inStock ? (added ? "Added" : product.hasVariants ? "Select Design" : "Add to Cart") : "Out of Stock"}
           </Button>
         </div>
         <div
@@ -132,53 +139,130 @@ export default function ProductCard({ product }: Props) {
 
       {open && (
         <div className="fixed inset-0 z-[10000]" role="dialog" aria-modal="true" onClick={() => setOpen(false)}>
-          <div className="absolute inset-0 bg-black/60" />
-          <div className="absolute inset-0 overflow-y-auto">
-            <div className="min-h-full flex items-center justify-center p-4">
-              <div className="relative w-full h-full sm:h-auto sm:max-w-3xl sm:rounded-lg shadow-lg" style={{ backgroundColor: theme.surface }} onClick={(e) => e.stopPropagation()}>
-                <div className="grid sm:grid-cols-2 h-full">
-                  <div className="relative flex items-center justify-center aspect-square sm:aspect-auto" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
-                    <button
-                      aria-label="Close"
-                      className="absolute top-2 right-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full shadow"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.9)', color: theme.background }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpen(false);
-                      }}
-                    >
-                      ✕
-                    </button>
-                    <button
-                      aria-label="Previous image"
-                      className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full shadow"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.8)', color: theme.background }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIdx((v) => (v - 1 + images.length) % images.length);
-                      }}
-                    >
-                      ‹
-                    </button>
-                    <img src={images[idx]} alt={product.title} className="max-h-[70vh] w-full object-contain" />
-                    <button
-                      aria-label="Next image"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full shadow"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.8)', color: theme.background }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIdx((v) => (v + 1) % images.length);
-                      }}
-                    >
-                      ›
-                    </button>
-                  </div>
-                  <div className="p-4 sm:p-6 overflow-y-auto">
-                    <h2 className="text-lg sm:text-xl font-semibold" style={{ color: theme.text }}>{product.title}</h2>
-                    <p className="text-sm mt-2 whitespace-pre-line" style={{ color: theme.text, opacity: 0.8 }}>{product.description}</p>
-                    <div className="mt-3">{priceSection}</div>
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          <div className="absolute inset-0 overflow-y-auto flex items-center justify-center p-2 sm:p-4">
+            <div className="relative w-full max-w-5xl max-h-[95vh] sm:rounded-xl shadow-2xl overflow-hidden" style={{ backgroundColor: theme.surface, borderColor: theme.border, border: '1px solid' }} onClick={(e) => e.stopPropagation()}>
+              <div className="grid md:grid-cols-2 max-h-[95vh]">
+                <div className="relative flex items-center justify-center bg-black/40 min-h-[300px] md:min-h-[500px]">
+                  <button
+                    aria-label="Close"
+                    className="absolute top-3 right-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full shadow-lg font-bold text-lg hover:scale-110 transition-transform"
+                    style={{ backgroundColor: theme.primary, color: theme.background }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpen(false);
+                    }}
+                  >
+                    ✕
+                  </button>
+                  {images.length > 1 && (
+                    <>
+                      <button
+                        aria-label="Previous image"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full shadow-lg font-bold text-2xl hover:scale-110 transition-transform"
+                        style={{ backgroundColor: 'rgba(251, 146, 60, 0.9)', color: theme.background }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIdx((v) => (v - 1 + images.length) % images.length);
+                        }}
+                      >
+                        ‹
+                      </button>
+                      <button
+                        aria-label="Next image"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full shadow-lg font-bold text-2xl hover:scale-110 transition-transform"
+                        style={{ backgroundColor: 'rgba(251, 146, 60, 0.9)', color: theme.background }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIdx((v) => (v + 1) % images.length);
+                        }}
+                      >
+                        ›
+                      </button>
+                    </>
+                  )}
+                  <img src={images[idx]} alt={product.title} className="max-h-[50vh] md:max-h-[90vh] w-full object-contain p-4" />
+                  {images.length > 1 && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                      {images.map((_, i) => (
+                        <button
+                          key={i}
+                          className="h-2 w-2 rounded-full transition-all"
+                          style={{ backgroundColor: i === idx ? theme.primary : 'rgba(255,255,255,0.5)' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIdx(i);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="p-6 overflow-y-auto max-h-[45vh] md:max-h-[95vh]">
+                  <h2 className="text-xl sm:text-2xl font-bold" style={{ color: theme.text }}>{product.title}</h2>
+                  <p className="text-sm mt-3 leading-relaxed whitespace-pre-line" style={{ color: theme.text, opacity: 0.85 }}>{product.description}</p>
+                  <div className="mt-4">{priceSection}</div>
+                  
+                  {showVariants ? (
+                    <>
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold mb-4" style={{ color: theme.text }}>Select Design</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {product.variants?.map((variant) => (
+                            <div
+                              key={variant.id}
+                              className="cursor-pointer rounded-lg overflow-hidden transition-all"
+                              style={{
+                                border: selectedVariant?.id === variant.id ? `3px solid ${theme.primary}` : `1px solid ${theme.border}`,
+                                backgroundColor: theme.background,
+                              }}
+                              onClick={() => setSelectedVariant(variant)}
+                            >
+                              <div className="aspect-square relative">
+                                <img
+                                  src={variant.images[0]}
+                                  alt={variant.name}
+                                  className="w-full h-full object-cover"
+                                />
+                                {selectedVariant?.id === variant.id && (
+                                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: theme.primary }}>
+                                    <span className="text-white text-sm font-bold">✓</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="p-2 text-center">
+                                <p className="text-sm font-medium" style={{ color: theme.text }}>{variant.name}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <Button
+                        className="mt-6 w-full text-base font-semibold py-6 hover:opacity-90 transition-opacity"
+                        style={{ backgroundColor: added ? '#10b981' : theme.primary, color: theme.background }}
+                        disabled={!product.inStock || !selectedVariant}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (selectedVariant) {
+                            window.dispatchEvent(new CustomEvent("add-to-cart", { detail: { product, variant: selectedVariant } }));
+                            setAdded(true);
+                            const t = setTimeout(() => {
+                              setAdded(false);
+                              setShowVariants(false);
+                              setSelectedVariant(null);
+                              setOpen(false);
+                            }, 1400);
+                            return () => clearTimeout(t);
+                          }
+                        }}
+                      >
+                        {product.inStock ? (added ? "✓ Added to Cart" : selectedVariant ? "Add to Cart" : "Select a Design") : "Out of Stock"}
+                      </Button>
+                    </>
+                  ) : (
                     <Button
-                      className="mt-4 w-full"
+                      className="mt-6 w-full text-base font-semibold py-6 hover:opacity-90 transition-opacity"
                       style={{ backgroundColor: added ? '#10b981' : theme.primary, color: theme.background }}
                       disabled={!product.inStock}
                       onClick={(e) => {
@@ -189,9 +273,9 @@ export default function ProductCard({ product }: Props) {
                         return () => clearTimeout(t);
                       }}
                     >
-                      {product.inStock ? (added ? "Added" : "Add to Cart") : "Out of Stock"}
+                      {product.inStock ? (added ? "✓ Added to Cart" : "Add to Cart") : "Out of Stock"}
                     </Button>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
