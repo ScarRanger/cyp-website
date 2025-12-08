@@ -54,6 +54,7 @@ export default function CartPage() {
       const orderData = {
         ...formData,
         items: items.map(({ product, qty, selectedVariant }) => ({
+          productId: product.id,
           title: product.title,
           price: product.price,
           qty: qty,
@@ -287,6 +288,10 @@ export default function CartPage() {
 
           <div className="text-sm p-3 rounded-lg text-center" style={{ backgroundColor: 'rgba(251, 146, 60, 0.05)', borderColor: theme.border, color: theme.text }}>
             You will receive a confirmation email of your order
+          </div>
+
+          <div className="text-sm p-3 rounded-lg text-center" style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)', color: theme.text }}>
+            For pickup or delivery please reach us out at <a href="https://wa.me/918551098035" target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80" style={{ color: theme.primary }}>+91 8551098035</a> after placing the order
           </div>
 
           <Button

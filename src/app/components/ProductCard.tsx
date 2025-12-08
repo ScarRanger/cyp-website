@@ -99,7 +99,12 @@ export default function ProductCard({ product }: Props) {
       <div
         className="relative border rounded-md overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer"
         style={{ backgroundColor: theme.surface, borderColor: theme.border }}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpen(true);
+          if (product.hasVariants && product.variants && product.variants.length > 0) {
+            setShowVariants(true);
+          }
+        }}
       >
         <div className="aspect-square w-full overflow-hidden" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
           <img ref={imgRef} src={images[idx]} alt={product.title} className="h-full w-full object-cover" />
@@ -208,43 +213,54 @@ export default function ProductCard({ product }: Props) {
                       <div className="mt-6">
                         <h3 className="text-lg font-semibold mb-4" style={{ color: theme.text }}>Select Design</h3>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {product.variants?.map((variant) => (
-                            <div
-                              key={variant.id}
-                              className="cursor-pointer rounded-lg overflow-hidden transition-all"
-                              style={{
-                                border: selectedVariant?.id === variant.id ? `3px solid ${theme.primary}` : `1px solid ${theme.border}`,
-                                backgroundColor: theme.background,
-                              }}
-                              onClick={() => setSelectedVariant(variant)}
-                            >
-                              <div className="aspect-square relative">
-                                <img
-                                  src={variant.images[0]}
-                                  alt={variant.name}
-                                  className="w-full h-full object-cover"
-                                />
-                                {selectedVariant?.id === variant.id && (
-                                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: theme.primary }}>
-                                    <span className="text-white text-sm font-bold">✓</span>
-                                  </div>
-                                )}
+                          {product.variants?.map((variant) => {
+                            const isOutOfStock = variant.inStock === false;
+                            return (
+                              <div
+                                key={variant.id}
+                                className="cursor-pointer rounded-lg overflow-hidden transition-all relative"
+                                style={{
+                                  border: selectedVariant?.id === variant.id ? `3px solid ${theme.primary}` : `1px solid ${theme.border}`,
+                                  backgroundColor: theme.background,
+                                  opacity: isOutOfStock ? 0.6 : 1,
+                                }}
+                                onClick={() => !isOutOfStock && setSelectedVariant(variant)}
+                              >
+                                <div className="aspect-square relative">
+                                  <img
+                                    src={variant.images[0]}
+                                    alt={variant.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  {selectedVariant?.id === variant.id && !isOutOfStock && (
+                                    <div className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: theme.primary }}>
+                                      <span className="text-white text-sm font-bold">✓</span>
+                                    </div>
+                                  )}
+                                  {isOutOfStock && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                                      <span className="text-white text-xs font-bold px-2 py-1 rounded" style={{ backgroundColor: theme.primary }}>
+                                        OUT OF STOCK
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="p-2 text-center">
+                                  <p className="text-sm font-medium" style={{ color: theme.text }}>{variant.name}</p>
+                                </div>
                               </div>
-                              <div className="p-2 text-center">
-                                <p className="text-sm font-medium" style={{ color: theme.text }}>{variant.name}</p>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                       
                       <Button
                         className="mt-6 w-full text-base font-semibold py-6 hover:opacity-90 transition-opacity"
                         style={{ backgroundColor: added ? '#10b981' : theme.primary, color: theme.background }}
-                        disabled={!product.inStock || !selectedVariant}
+                        disabled={!product.inStock || !selectedVariant || selectedVariant.inStock === false}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (selectedVariant) {
+                          if (selectedVariant && selectedVariant.inStock !== false) {
                             window.dispatchEvent(new CustomEvent("add-to-cart", { detail: { product, variant: selectedVariant } }));
                             setAdded(true);
                             const t = setTimeout(() => {
@@ -257,7 +273,7 @@ export default function ProductCard({ product }: Props) {
                           }
                         }}
                       >
-                        {product.inStock ? (added ? "✓ Added to Cart" : selectedVariant ? "Add to Cart" : "Select a Design") : "Out of Stock"}
+                        {product.inStock ? (added ? "✓ Added to Cart" : selectedVariant ? (selectedVariant.inStock === false ? "Out of Stock" : "Add to Cart") : "Select a Design") : "Out of Stock"}
                       </Button>
                     </>
                   ) : (

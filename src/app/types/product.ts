@@ -2,6 +2,7 @@ export type ProductVariant = {
   id: string;
   name: string;
   images: string[];
+  inStock?: boolean;
 };
 
 export type Product = {

@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import nodemailer from 'nodemailer';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+// Initialize Firebase Admin if not already initialized
+if (getApps().length === 0) {
+  const credentials = JSON.parse(
+    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || '', 'base64').toString('utf-8')
+  );
+
+  initializeApp({
+    credential: cert(credentials)
+  });
+}
+
+const db = getFirestore();
 
 // Google Sheet ID for fundraiser orders
 const FUNDRAISER_SHEET_ID = '1ODlIMild9QS0wHSQny3BV1dQVqCrxEMqxGwdP9d8iFY';
@@ -279,6 +294,35 @@ export async function POST(request: NextRequest) {
       console.log('Customer confirmation email sent successfully');
     } catch (emailError) {
       console.error('Error sending customer confirmation email:', emailError);
+    }
+
+    // Mark variants as out of stock
+    try {
+      for (const item of items) {
+        if (item.variant && item.productId) {
+          const productRef = db.collection('fundraiser_items').doc(item.productId);
+          const productDoc = await productRef.get();
+
+          if (productDoc.exists) {
+            const productData = productDoc.data();
+            
+            if (productData?.variants) {
+              const updatedVariants = productData.variants.map((v: any) => {
+                if (v.name === item.variant) {
+                  return { ...v, inStock: false };
+                }
+                return v;
+              });
+
+              await productRef.update({ variants: updatedVariants });
+              console.log(`Marked variant "${item.variant}" as out of stock for product ${item.productId}`);
+            }
+          }
+        }
+      }
+    } catch (stockError) {
+      console.error('Error updating variant stock:', stockError);
+      // Don't fail the order if stock update fails
     }
 
     return NextResponse.json(
