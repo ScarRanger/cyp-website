@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Product, ProductVariant } from "../types/product";
 import { Button } from "./ui/button";
 import { useRef } from "react";
+import { useCart } from "../providers/CartProvider";
 
 const theme = {
   background: '#1C1917',
@@ -25,6 +26,11 @@ export default function ProductCard({ product }: Props) {
   const [open, setOpen] = useState(false);
   const [showVariants, setShowVariants] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const { items, addToCart, updateQty, removeFromCart } = useCart();
+
+  // Get current quantity in cart for products without variants
+  const cartItem = items.find(i => i.product.id === product.id && !i.selectedVariant);
+  const currentQty = cartItem?.qty || 0;
 
   useEffect(() => {
     if (open) return; // pause auto-rotate when overlay is open
@@ -119,34 +125,78 @@ export default function ProductCard({ product }: Props) {
           <h3 className="font-semibold line-clamp-1 text-sm" style={{ color: theme.text }}>{product.title}</h3>
           <p className="text-xs line-clamp-2 mt-0.5" style={{ color: theme.text, opacity: 0.7 }}>{product.description}</p>
           {priceSection}
-          <Button
-            className="mt-2 w-full"
-            style={{ backgroundColor: added ? '#10b981' : theme.primary, color: theme.background }}
-            size="sm"
-            disabled={!product.inStock}
-            onClick={(e) => {
-              e.stopPropagation();
-              
-              // Check if it's a lottery product
-              if ((product as any).isLottery) {
-                window.location.href = '/lottery';
-                return;
-              }
-              
-              if (product.hasVariants && product.variants && product.variants.length > 0) {
-                setShowVariants(true);
-                setOpen(true);
-              } else {
-                window.dispatchEvent(new CustomEvent("add-to-cart", { detail: product }));
-                flyToCart();
-                setAdded(true);
-                const t = setTimeout(() => setAdded(false), 1400);
-                return () => clearTimeout(t);
-              }
-            }}
-          >
-            {product.inStock ? (added ? "Added" : (product as any).isLottery ? "Buy Ticket" : product.hasVariants ? "Select Design" : "Add to Cart") : "Out of Stock"}
-          </Button>
+          
+          {/* Show quantity controls for products without variants */}
+          {!product.hasVariants && !(product as any).isLottery ? (
+            currentQty > 0 ? (
+              <div className="mt-2 w-full flex items-center justify-between border-2 rounded-full px-4 py-2" style={{ borderColor: theme.primary }}>
+                <button
+                  className="w-8 h-8 flex items-center justify-center font-bold text-xl hover:opacity-70 transition-opacity"
+                  style={{ color: theme.text }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (currentQty === 1) {
+                      removeFromCart(product.id);
+                    } else {
+                      updateQty(product.id, currentQty - 1);
+                    }
+                  }}
+                >
+                  {currentQty === 1 ? '🗑' : '−'}
+                </button>
+                <span className="font-bold text-lg" style={{ color: theme.text }}>{currentQty}</span>
+                <button
+                  className="w-8 h-8 flex items-center justify-center font-bold text-xl hover:opacity-70 transition-opacity"
+                  style={{ color: theme.text }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateQty(product.id, currentQty + 1);
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            ) : (
+              <Button
+                className="mt-2 w-full"
+                style={{ backgroundColor: added ? '#10b981' : theme.primary, color: theme.background }}
+                size="sm"
+                disabled={!product.inStock}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToCart(product, 1);
+                  flyToCart();
+                  setAdded(true);
+                  setTimeout(() => setAdded(false), 1400);
+                }}
+              >
+                {product.inStock ? (added ? "Added" : "Add to Cart") : "Out of Stock"}
+              </Button>
+            )
+          ) : (
+            <Button
+              className="mt-2 w-full"
+              style={{ backgroundColor: added ? '#10b981' : theme.primary, color: theme.background }}
+              size="sm"
+              disabled={!product.inStock}
+              onClick={(e) => {
+                e.stopPropagation();
+                
+                // Check if it's a lottery product
+                if ((product as any).isLottery) {
+                  window.location.href = '/lottery';
+                  return;
+                }
+                
+                if (product.hasVariants && product.variants && product.variants.length > 0) {
+                  setShowVariants(true);
+                  setOpen(true);
+                }
+              }}
+            >
+              {product.inStock ? ((product as any).isLottery ? "Buy Ticket" : product.hasVariants ? "Select Design" : "Add to Cart") : "Out of Stock"}
+            </Button>
+          )}
         </div>
         <div
           className={`pointer-events-none absolute top-2 right-2 rounded-full bg-green-600 text-white text-xs px-2 py-1 shadow-md transition-all duration-300 ${added ? "opacity-100 scale-100" : "opacity-0 scale-75"}`}

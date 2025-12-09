@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 // Initialize Firebase Admin if not already initialized
 if (getApps().length === 0) {
@@ -16,16 +16,8 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-// Create SMTP transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-  port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: true,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
-});
+// Initialize Resend
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
@@ -144,13 +136,17 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    // Send email asynchronously without blocking the response
-    transporter.sendMail({
-      from: `"CYP Lottery" <${process.env.SMTP_USER}>`,
-      to: orderData.email,
-      subject: `⚠️ CYP Lottery - Order Declined (Ticket #${orderData.ticketNumber})`,
-      html: declineHtml,
-    }).catch(err => console.error('Error sending decline email:', err));
+    // Send email (await to ensure it completes in production)
+    try {
+      await resend.emails.send({
+        from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
+        to: [orderData.email],
+        subject: `⚠️ CYP Lottery - Order Declined (Ticket #${orderData.ticketNumber})`,
+        html: declineHtml,
+      });
+    } catch (err) {
+      console.error('Error sending decline email:', err);
+    }
 
     return NextResponse.json({
       success: true,

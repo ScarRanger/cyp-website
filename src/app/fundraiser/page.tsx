@@ -50,26 +50,53 @@ export default function FundraiserPage() {
         <h1 className="text-2xl font-bold" style={{ color: theme.text }}>Fundraiser Store</h1>
       </div>
       
-      <div className="mb-6 p-6 rounded-lg border-2" style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)', borderColor: theme.primary }}>
-        <h2 className="text-lg font-bold mb-3" style={{ color: theme.primary }}>🎯 Supporting Our Mission</h2>
-        <p className="mb-2" style={{ color: theme.text, fontSize: '0.95rem' }}>
-          The funds raised from the sales will be used for:
+      <div className="mb-4 p-4 rounded-lg border" style={{ backgroundColor: 'rgba(251, 146, 60, 0.05)', borderColor: theme.border }}>
+        <h2 className="text-base font-bold mb-2" style={{ color: theme.primary }}>🎯 Supporting Our Mission</h2>
+        <p className="text-sm" style={{ color: theme.text, opacity: 0.8 }}>
+          Funds raised support CYP Works of Mercy & Charity, Evangelizing youth, and Conducting retreats & youth camps.
         </p>
-        <ul className="space-y-2 ml-4">
-          <li className="flex items-start gap-2" style={{ color: theme.text }}>
-            <span style={{ color: theme.primary }}>✓</span>
-            <span>CYP Works of Mercy & Charity</span>
-          </li>
-          <li className="flex items-start gap-2" style={{ color: theme.text }}>
-            <span style={{ color: theme.primary }}>✓</span>
-            <span>Evangelizing youth</span>
-          </li>
-          <li className="flex items-start gap-2" style={{ color: theme.text }}>
-            <span style={{ color: theme.primary }}>✓</span>
-            <span>Conducting retreats & youth camps</span>
-          </li>
-        </ul>
       </div>
+
+      <Link href="/lottery" className="block mb-6">
+        <div className="relative overflow-hidden rounded-xl border-2 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer animate-pulse-slow" style={{ backgroundColor: 'rgba(251, 146, 60, 0.15)', borderColor: theme.primary }}>
+          <div className="absolute top-2 left-2 text-2xl animate-bounce">🎈</div>
+          <div className="absolute top-2 right-2 text-2xl animate-bounce" style={{ animationDelay: '0.2s' }}>🎈</div>
+          <div className="absolute bottom-2 left-4 text-2xl animate-bounce" style={{ animationDelay: '0.4s' }}>🎈</div>
+          <div className="absolute bottom-2 right-4 text-2xl animate-bounce" style={{ animationDelay: '0.6s' }}>🎈</div>
+          
+          <div className="text-center relative z-10">
+            <div className="text-4xl mb-2">🎟️</div>
+            <h3 className="text-2xl font-bold mb-2" style={{ color: theme.primary }}>
+              🎉 MEGA LOTTERY DRAW! 🎉
+            </h3>
+            <p className="text-lg font-semibold mb-3" style={{ color: theme.text }}>
+              Win Amazing Prizes! Only 50 Tickets Available
+            </p>
+            <div className="flex items-center justify-center gap-4 mb-3 text-sm flex-wrap" style={{ color: theme.text }}>
+              <span className="font-semibold">🥇 Smartphone</span>
+              <span className="font-semibold">🥈 Home Theatre</span>
+              <span className="font-semibold">🥉 Air Fryer</span>
+              <span className="font-semibold">🎁 & More!</span>
+            </div>
+            <div className="inline-block px-6 py-3 rounded-full font-bold text-lg animate-pulse" style={{ backgroundColor: theme.primary, color: theme.background }}>
+              ₹100 Only • Draw on 29th Dec
+            </div>
+            <p className="text-sm mt-3 font-medium" style={{ color: theme.text, opacity: 0.9 }}>
+              📍 Jeevan Darshan Kendra, Giriz
+            </p>
+          </div>
+        </div>
+      </Link>
+
+      <style jsx>{`
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.95; }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 2s ease-in-out infinite;
+        }
+      `}</style>
 
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {loading ? (

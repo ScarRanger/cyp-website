@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { google } from 'googleapis';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 // Initialize Firebase Admin if not already initialized
 if (getApps().length === 0) {
@@ -27,16 +27,8 @@ const EMAIL_RECIPIENTS = [
   "crystal.colaco@gmail.com"
 ].filter(Boolean);
 
-// Create SMTP transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-  port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: true,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
-});
+// Initialize Resend
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
@@ -96,11 +88,13 @@ export async function POST(request: NextRequest) {
     // Send emails asynchronously (non-blocking)
     const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
     
-    Promise.all([
-      // Send email notification to admins
-      (async () => {
-        try {
-          const adminEmailHtml = `
+    // Send emails in background but don't block the response
+    setImmediate(async () => {
+      try {
+        console.log('[Lottery Order] Sending admin email...');
+
+        // Send email notification to admins
+        const adminEmailHtml = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -176,21 +170,21 @@ export async function POST(request: NextRequest) {
         </html>
       `;
 
-      await transporter.sendMail({
-        from: `"CYP Lottery" <${process.env.SMTP_USER}>`,
-        to: EMAIL_RECIPIENTS.join(','),
-        subject: `New Lottery Order - Ticket #${ticketNumber} - ${name}`,
-        html: adminEmailHtml,
-      });
-        } catch (emailError) {
-          console.error('Error sending admin email:', emailError);
-        }
-      })(),
-      
-      // Send confirmation email to customer
-      (async () => {
         try {
-          const customerEmailHtml = `
+          console.log('[Lottery Order] Sending admin email to:', EMAIL_RECIPIENTS.join(','));
+          await resend.emails.send({
+            from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
+            to: EMAIL_RECIPIENTS,
+            subject: `New Lottery Order - Ticket #${ticketNumber} - ${name}`,
+            html: adminEmailHtml,
+          });
+          console.log('[Lottery Order] Admin email sent successfully');
+        } catch (emailError) {
+          console.error('[Lottery Order] Error sending admin email:', emailError);
+        }
+
+        // Send confirmation email to customer
+        const customerEmailHtml = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -251,17 +245,22 @@ export async function POST(request: NextRequest) {
         </html>
       `;
 
-      await transporter.sendMail({
-        from: `"CYP Lottery" <${process.env.SMTP_USER}>`,
-        to: email,
-        subject: `Lottery Ticket Order Confirmation - Ticket #${ticketNumber}`,
-        html: customerEmailHtml,
-      });
+        try {
+          console.log('[Lottery Order] Sending customer email to:', email);
+          await resend.emails.send({
+            from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
+            to: [email],
+            subject: `Lottery Ticket Order Confirmation - Ticket #${ticketNumber}`,
+            html: customerEmailHtml,
+          });
+          console.log('[Lottery Order] Customer email sent successfully');
         } catch (emailError) {
-          console.error('Error sending customer email:', emailError);
+          console.error('[Lottery Order] Error sending customer email:', emailError);
         }
-      })()
-    ]).catch(err => console.error('Error sending emails:', err));
+      } catch (error) {
+        console.error('[Lottery Order] Error in background email sending:', error);
+      }
+    });
 
     return NextResponse.json({
       success: true,
