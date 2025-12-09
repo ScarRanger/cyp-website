@@ -49,6 +49,7 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState<string>('');
@@ -114,18 +115,49 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
     });
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    try {
+      setUploadingImage(true);
+      
+      // Create preview immediately
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target?.result as string);
-        setForm(prev => ({
-          ...prev,
-          imageUrl: e.target?.result as string
-        }));
       };
       reader.readAsDataURL(file);
+
+      // Upload to S3
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('uploadType', 'image');
+      formData.append('isAdminUpload', 'true');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.url) {
+        // Update form with S3 CloudFront URL
+        setForm(prev => ({
+          ...prev,
+          imageUrl: result.url
+        }));
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image. Please try again.');
+      // Clear preview on error
+      setImagePreview(null);
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -244,6 +276,9 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
                   Form Header Image
                 </label>
                 <p className={`text-xs mb-2 ${isEspresso ? 'text-[#FAFAFA]/50' : 'text-gray-500'}`}>Recommended aspect ratio: 4:1</p>
+                {uploadingImage && (
+                  <div className="mb-2 text-sm text-[#FB923C]">Uploading image...</div>
+                )}
                 {imagePreview ? (
                   <div className="relative">
                     <div className="relative w-full pb-[25%] rounded-lg overflow-hidden">
@@ -258,6 +293,7 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
                     <button
                       onClick={removeImage}
                       className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      disabled={uploadingImage}
                     >
                       <X size={16} />
                     </button>
@@ -266,12 +302,15 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
                   <div className={`border-2 border-dashed rounded-lg p-4 text-center ${isEspresso ? 'border-[#FB923C]/30' : 'border-gray-300'}`}>
                     <Upload className={`mx-auto h-8 w-8 mb-2 ${isEspresso ? 'text-[#FB923C]/50' : 'text-gray-400'}`} />
                     <label className="cursor-pointer">
-                      <span className={`text-sm ${isEspresso ? 'text-[#FAFAFA]/70' : 'text-gray-600'}`}>Click to upload image</span>
+                      <span className={`text-sm ${isEspresso ? 'text-[#FAFAFA]/70' : 'text-gray-600'}`}>
+                        {uploadingImage ? 'Uploading...' : 'Click to upload image'}
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
                         onChange={handleImageUpload}
                         className="hidden"
+                        disabled={uploadingImage}
                       />
                     </label>
                   </div>

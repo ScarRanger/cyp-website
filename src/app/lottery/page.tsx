@@ -334,13 +334,13 @@ export default function LotteryPage() {
               <h3 className="font-semibold mb-3" style={{ color: theme.text }}>UPI Payment</h3>
               
               <div className="mb-4 p-3 rounded-lg flex justify-center" style={{ backgroundColor: 'white' }}>
-                <img src="/qr-code-upi.png" alt="UPI QR Code" className="w-48 h-48" />
+                <img src="/lottery_qr.png" alt="UPI QR Code" className="w-48 h-48" />
               </div>
 
               <div className="mb-3 p-3 rounded-lg" style={{ backgroundColor: theme.surface }}>
                 <div className="text-sm mb-1" style={{ color: theme.text, opacity: 0.7 }}>UPI ID:</div>
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold" style={{ color: theme.primary }}>dabrecarren10-2@oksbi</span>
+                  <span className="font-mono font-bold" style={{ color: theme.primary }}>rhine.pereira@okhdfcbank</span>
                   <Button
                     type="button"
                     size="sm"

@@ -22,6 +22,7 @@ export default function EditFundraiserItemPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -62,6 +63,46 @@ export default function EditFundraiserItemPage() {
   const addImageField = () => setImages((prev) => [...prev, ""]);
   const changeImage = (i: number, v: string) => setImages((prev) => prev.map((u, idx) => (idx === i ? v : u)));
   const removeImageField = (i: number) => setImages((prev) => prev.filter((_, idx) => idx !== i));
+
+  const handleMultipleFileUpload = async (i: number, files: FileList) => {
+    const fileArr = Array.from(files);
+    if (fileArr.length === 0) return;
+    
+    for (let idx = 0; idx < fileArr.length; idx++) {
+      const f = fileArr[idx];
+      try {
+        setUploadingIdx(i);
+        const fd = new FormData();
+        fd.append("file", f);
+        fd.append("uploadType", "image");
+        fd.append("isAdminUpload", "true");
+        fd.append("productId", id);
+        fd.append("imageIndex", String(i + idx + 1));
+        
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const data = await res.json();
+        
+        if (data?.success && data?.url) {
+          setImages((prev) => {
+            const next = [...prev];
+            if (idx === 0) {
+              next[i] = data.url as string;
+            } else {
+              next.push(data.url as string);
+            }
+            return next;
+          });
+          setMsg("Image uploaded");
+        } else {
+          setMsg("Upload failed");
+        }
+      } catch {
+        setMsg("Upload failed");
+      } finally {
+        setUploadingIdx(null);
+      }
+    }
+  };
 
   const save = async () => {
     try {
@@ -118,6 +159,18 @@ export default function EditFundraiserItemPage() {
                     {images.map((u, i) => (
                       <div key={i} className="flex gap-2 items-center">
                         <input className={inputClass} value={u} onChange={(e) => changeImage(i, e.target.value)} placeholder="https://..." />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="text-[#FAFAFA] file:mr-3 file:rounded-md file:border-0 file:bg-[#FB923C] file:px-3 file:py-2 file:text-sm file:text-[#1C1917] hover:file:bg-[#FCD34D]"
+                          onChange={(e) => {
+                            const fl = e.target.files;
+                            if (fl && fl.length > 0) {
+                              handleMultipleFileUpload(i, fl);
+                            }
+                          }}
+                        />
                         {images.length > 1 && (
                           <Button variant="ghost" onClick={() => removeImageField(i)} className="text-red-400 hover:text-red-300 hover:bg-red-900/20">Remove</Button>
                         )}

@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { Button } from "@/app/components/ui/button";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/app/lib/firebase";
 import Link from "next/link";
 import AuthGuard from "@/app/components/Auth/AuthGuard";
@@ -75,16 +75,67 @@ export default function AdminFundraiserAddPage() {
     try {
       setSaving(true);
       setMessage("");
-      await addDoc(collection(db, "fundraiser_items"), {
+      
+      // Create the product first to get the ID
+      const docRef = await addDoc(collection(db, "fundraiser_items"), {
         title: title.trim(),
         description: description.trim(),
-        images: images.map((u) => u.trim()).filter(Boolean),
+        images: [], // Empty initially
         price: Number(price),
         compareAtPrice: compareAtPrice ? Number(compareAtPrice) : undefined,
         inStock,
         active,
         createdAt: serverTimestamp(),
       });
+      
+      const productId = docRef.id;
+      
+      // Now re-upload images with proper product ID structure
+      const finalImageUrls: string[] = [];
+      const imageUrls = images.map((u) => u.trim()).filter(Boolean);
+      
+      for (let i = 0; i < imageUrls.length; i++) {
+        const imageUrl = imageUrls[i];
+        
+        // If it's a temp S3 URL, we need to re-upload with proper structure
+        if (imageUrl.includes('fundraiser/temp/')) {
+          try {
+            // Download the temp image
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+            
+            // Re-upload with product ID
+            const fd = new FormData();
+            fd.append("file", blob, `image-${i + 1}.jpg`);
+            fd.append("uploadType", "image");
+            fd.append("isAdminUpload", "true");
+            fd.append("productId", productId);
+            fd.append("imageIndex", String(i + 1));
+            
+            const res = await fetch("/api/upload", { method: "POST", body: fd });
+            const data = await res.json();
+            
+            if (data?.success && data?.url) {
+              finalImageUrls.push(data.url);
+            } else {
+              // Fallback to original URL if re-upload fails
+              finalImageUrls.push(imageUrl);
+            }
+          } catch {
+            // If re-upload fails, use original temp URL
+            finalImageUrls.push(imageUrl);
+          }
+        } else {
+          // Keep non-temp URLs as-is
+          finalImageUrls.push(imageUrl);
+        }
+      }
+      
+      // Update product with final image URLs
+      await updateDoc(docRef, {
+        images: finalImageUrls
+      });
+      
       setTitle("");
       setDescription("");
       setImages([""]);
