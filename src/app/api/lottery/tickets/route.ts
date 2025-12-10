@@ -1,82 +1,99 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { createServerSupabaseClient } from '@/app/lib/supabase';
 
-// Initialize Firebase Admin if not already initialized
-if (getApps().length === 0) {
-  const credentials = JSON.parse(
-    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || '', 'base64').toString('utf-8')
-  );
-
-  initializeApp({
-    credential: cert(credentials)
-  });
-}
-
-const db = getFirestore();
+// In-memory cache to reduce database reads
+let ticketCache: any = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 30000; // 30 seconds cache
 
 export async function GET(request: NextRequest) {
   try {
-    const ticketsRef = db.collection('lottery_tickets');
-    const snapshot = await ticketsRef.get();
+    // Get sessionId from query params to filter soft-locked tickets
+    const { searchParams } = new URL(request.url);
+    const sessionId = searchParams.get('sessionId');
+
+    const now = Date.now();
+    const supabase = createServerSupabaseClient();
+
+    // Use cache if it's fresh
+    let tickets;
+    if (ticketCache && (now - cacheTimestamp) < CACHE_DURATION) {
+      tickets = ticketCache;
+    } else {
+      const { data, error } = await supabase
+        .from('lottery_tickets')
+        .select('*')
+        .order('ticket_number');
+
+      if (error) throw error;
+
+      tickets = data;
+      ticketCache = tickets;
+      cacheTimestamp = now;
+    }
 
     const available: number[] = [];
     const softLocked: number[] = [];
+    const myTickets: number[] = [];
     const sold: number[] = [];
 
-    // If no tickets exist, initialize them
-    if (snapshot.empty) {
-      const batch = db.batch();
-      for (let i = 1; i <= 50; i++) {
-        const docRef = ticketsRef.doc(i.toString());
-        batch.set(docRef, {
-          ticketNumber: i,
-          status: 'available',
-          sessionId: null,
-          clientIP: null,
-          lockedAt: null,
-          orderId: null,
-        });
-        available.push(i);
-      }
-      await batch.commit();
-    } else {
-      const now = Date.now();
-      const LOCK_EXPIRY = 5 * 60 * 1000; // 5 minutes
+    const LOCK_EXPIRY = 5 * 60 * 1000; // 5 minutes
+    const expiredTickets: number[] = [];
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const ticketNumber = data.ticketNumber;
+    tickets?.forEach((ticket: any) => {
+      const ticketNumber = ticket.ticket_number;
 
-        // Check if soft lock has expired
-        if (data.status === 'soft-locked' && data.lockedAt) {
-          const lockedTime = data.lockedAt.toMillis();
-          if (now - lockedTime > LOCK_EXPIRY) {
-            // Release expired lock
-            doc.ref.update({
-              status: 'available',
-              sessionId: null,
-              clientIP: null,
-              lockedAt: null,
-            });
-            available.push(ticketNumber);
-            return;
-          }
-        }
-
-        if (data.status === 'available') {
+      // Check if soft lock has expired (but DON'T release if there's a pending order)
+      if (ticket.status === 'soft-locked' && ticket.locked_at && !ticket.order_id) {
+        const lockedTime = new Date(ticket.locked_at).getTime();
+        if (now - lockedTime > LOCK_EXPIRY) {
+          // Mark for release
+          expiredTickets.push(ticketNumber);
           available.push(ticketNumber);
-        } else if (data.status === 'soft-locked') {
-          softLocked.push(ticketNumber);
-        } else if (data.status === 'sold') {
-          sold.push(ticketNumber);
+          return;
         }
-      });
+      }
+
+      if (ticket.status === 'available') {
+        available.push(ticketNumber);
+      } else if (ticket.status === 'soft-locked') {
+        // Separate tickets locked by current session vs others
+        if (sessionId && ticket.session_id === sessionId) {
+          myTickets.push(ticketNumber);
+        } else {
+          softLocked.push(ticketNumber);
+        }
+      } else if (ticket.status === 'sold') {
+        sold.push(ticketNumber);
+      }
+    });
+
+    // Release expired locks in background (non-blocking)
+    if (expiredTickets.length > 0) {
+      (async () => {
+        try {
+          await supabase
+            .from('lottery_tickets')
+            .update({
+              status: 'available',
+              session_id: null,
+              client_ip: null,
+              locked_at: null,
+            })
+            .in('ticket_number', expiredTickets);
+          
+          // Clear cache after updating
+          ticketCache = null;
+        } catch (err) {
+          console.error('Error releasing expired locks:', err);
+        }
+      })();
     }
 
     return NextResponse.json({
       available: available.sort((a, b) => a - b),
       softLocked: softLocked.sort((a, b) => a - b),
+      myTickets: myTickets.sort((a, b) => a - b),
       sold: sold.sort((a, b) => a - b),
     });
   } catch (error) {

@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/app/lib/supabase';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { Resend } from 'resend';
 
+// Initialize Firebase Admin if not already initialized
+if (getApps().length === 0) {
+  const credentials = JSON.parse(
+    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || '', 'base64').toString('utf-8')
+  );
+
+  initializeApp({
+    credential: cert(credentials)
+  });
+}
+
+const db = getFirestore();
+
+// Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
@@ -16,49 +31,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createServerSupabaseClient();
-
     // Get order details
-    const { data: order, error: orderError } = await supabase
-      .from('lottery_orders')
-      .select('*')
-      .eq('id', orderId)
-      .single();
+    const orderRef = db.collection('lottery_orders').doc(orderId);
+    const orderDoc = await orderRef.get();
 
-    if (orderError || !order) {
+    if (!orderDoc.exists) {
       return NextResponse.json(
         { error: 'Order not found' },
         { status: 404 }
       );
     }
 
-    if (order.status !== 'pending') {
-      return NextResponse.json(
-        { error: 'Order is not pending' },
-        { status: 400 }
-      );
-    }
+    // Use transaction to ensure atomic updates
+    let orderData: any;
+    
+    await db.runTransaction(async (transaction) => {
+      // Re-read order within transaction
+      const orderDoc = await transaction.get(orderRef);
+      
+      if (!orderDoc.exists) {
+        throw new Error('Order not found');
+      }
 
-    // Update order status to confirmed
-    const { error: updateOrderError } = await supabase
-      .from('lottery_orders')
-      .update({
+      orderData = orderDoc.data();
+
+      if (orderData?.status !== 'pending') {
+        throw new Error('Order is not pending');
+      }
+
+      // Atomically update both order and ticket
+      transaction.update(orderRef, {
         status: 'confirmed',
-        confirmed_at: new Date().toISOString(),
-      })
-      .eq('id', orderId);
+        confirmedAt: Timestamp.now(),
+      });
 
-    if (updateOrderError) throw updateOrderError;
+      const ticketRef = db.collection('lottery_tickets').doc(orderData.ticketNumber.toString());
+      transaction.update(ticketRef, {
+        status: 'sold',
+      });
+    });
 
-    // Update ticket status to sold
-    const { error: updateTicketError } = await supabase
-      .from('lottery_tickets')
-      .update({ status: 'sold' })
-      .eq('ticket_number', order.ticket_number);
-
-    if (updateTicketError) throw updateTicketError;
-
-    // Send E-Ticket email
+    // Send E-Ticket email asynchronously (non-blocking)
     const eTicketHtml = `
       <!DOCTYPE html>
       <html>
@@ -74,6 +87,7 @@ export async function POST(request: NextRequest) {
           .label { font-weight: bold; color: #FB923C; font-size: 14px; }
           .value { margin-top: 5px; font-size: 16px; }
           .footer { background-color: #1C1917; color: #FAFAFA; padding: 20px; text-align: center; }
+          .divider { border-top: 2px dashed #FB923C; margin: 30px 0; }
         </style>
       </head>
       <body>
@@ -85,34 +99,38 @@ export async function POST(request: NextRequest) {
           
           <div class="ticket-box">
             <div style="font-size: 20px; opacity: 0.9;">YOUR TICKET NUMBER</div>
-            <div class="ticket-number">#${order.ticket_number}</div>
+            <div class="ticket-number">#${orderData.ticketNumber}</div>
             <div style="font-size: 16px; opacity: 0.9;">Keep this ticket safe!</div>
           </div>
           
           <div class="content">
             <p style="font-size: 18px; color: #22c55e; font-weight: bold; text-align: center;">✅ Payment Confirmed</p>
             
+            <div class="divider"></div>
+            
             <h2 style="color: #FB923C;">Ticket Holder Details</h2>
             
             <div class="field">
               <div class="label">Name</div>
-              <div class="value">${order.name}</div>
+              <div class="value">${orderData.name}</div>
             </div>
             
             <div class="field">
               <div class="label">Phone Number</div>
-              <div class="value">${order.phone}</div>
+              <div class="value">${orderData.phone}</div>
             </div>
             
             <div class="field">
               <div class="label">Email</div>
-              <div class="value">${order.email}</div>
+              <div class="value">${orderData.email}</div>
             </div>
             
             <div class="field">
               <div class="label">Parish</div>
-              <div class="value">${order.parish}</div>
+              <div class="value">${orderData.parish}</div>
             </div>
+            
+            <div class="divider"></div>
             
             <div class="field">
               <div class="label">Order ID</div>
@@ -121,17 +139,17 @@ export async function POST(request: NextRequest) {
             
             <div class="field">
               <div class="label">Transaction ID</div>
-              <div class="value">${order.transaction_id}</div>
+              <div class="value">${orderData.transactionId}</div>
             </div>
             
             <div class="field">
               <div class="label">Amount Paid</div>
-              <div class="value" style="color: #FB923C; font-size: 20px; font-weight: bold;">₹${order.amount}</div>
+              <div class="value" style="color: #FB923C; font-size: 20px; font-weight: bold;">₹${orderData.amount}</div>
             </div>
             
             <div style="background-color: #fff3e0; padding: 20px; border-radius: 8px; margin-top: 30px; border: 2px solid #FB923C;">
               <p style="margin: 0; font-weight: bold; color: #FB923C;">📱 For Queries:</p>
-              <p style="margin: 10px 0 0 0;">Contact us at <strong style="color: #FB923C;">+91 7875947907</strong></p>
+              <p style="margin: 10px 0 0 0;">Contact us at <strong style="color: #FB923C;">+91 8551098035</strong></p>
             </div>
           </div>
           
@@ -145,16 +163,59 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
+    // Send email (await to ensure it completes in production)
     try {
       await resend.emails.send({
         from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
-        to: [order.email],
-        subject: `🎟️ Your CYP Lottery E-Ticket - Ticket #${order.ticket_number}`,
+        to: [orderData.email],
+        subject: `🎟️ Your CYP Lottery E-Ticket - Ticket #${orderData.ticketNumber}`,
         html: eTicketHtml,
       });
     } catch (err) {
       console.error('Error sending e-ticket email:', err);
     }
+
+    // Log to Google Sheets in background (non-blocking)
+    (async () => {
+      try {
+        const { google } = await import('googleapis');
+        const credentials = JSON.parse(
+          Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_BASE64 || '', 'base64').toString('utf-8')
+        );
+
+        const auth = new google.auth.GoogleAuth({
+          credentials,
+          scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+
+        const sheets = google.sheets({ version: 'v4', auth });
+        const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+        const row = [
+          timestamp,
+          orderId,
+          `Ticket #${orderData.ticketNumber}`,
+          orderData.name,
+          orderData.phone,
+          orderData.email,
+          orderData.parish,
+          orderData.transactionId,
+          `₹${orderData.amount}`,
+          'Confirmed'
+        ];
+
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: '1ODlIMild9QS0wHSQny3BV1dQVqCrxEMqxGwdP9d8iFY',
+          range: 'Lottery!A:J',
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [row],
+          },
+        });
+      } catch (sheetError) {
+        console.error('Error logging to Google Sheets:', sheetError);
+      }
+    })();
 
     return NextResponse.json({
       success: true,

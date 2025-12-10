@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/app/lib/supabase';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { google } from 'googleapis';
 import { Resend } from 'resend';
+
+// Initialize Firebase Admin if not already initialized
+if (getApps().length === 0) {
+  const credentials = JSON.parse(
+    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || '', 'base64').toString('utf-8')
+  );
+
+  initializeApp({
+    credential: cert(credentials)
+  });
+}
+
+const db = getFirestore();
 
 // Google Sheet ID for lottery orders
 const LOTTERY_SHEET_ID = '1ODlIMild9QS0wHSQny3BV1dQVqCrxEMqxGwdP9d8iFY';
@@ -29,84 +43,85 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createServerSupabaseClient();
+    // Use transaction to prevent duplicate orders and ensure atomicity
+    const ticketRef = db.collection('lottery_tickets').doc(ticketNumber.toString());
+    const ordersRef = db.collection('lottery_orders');
+    
+    let orderId: string;
+    
+    try {
+      orderId = await db.runTransaction(async (transaction) => {
+        // 1. Check for duplicate transactionId first
+        const existingOrdersQuery = await ordersRef
+          .where('transactionId', '==', transactionId)
+          .limit(1)
+          .get();
+        
+        if (!existingOrdersQuery.empty) {
+          const existingOrder = existingOrdersQuery.docs[0];
+          throw new Error(`DUPLICATE_TRANSACTION:${existingOrder.id}`);
+        }
 
-    // Check for duplicate transactionId
-    const { data: existingOrder, error: duplicateError } = await supabase
-      .from('lottery_orders')
-      .select('id')
-      .eq('transaction_id', transactionId)
-      .maybeSingle();
+        // 2. Verify ticket is still locked by this session
+        const ticketDoc = await transaction.get(ticketRef);
 
-    if (duplicateError && duplicateError.code !== 'PGRST116') {
-      throw duplicateError;
+        if (!ticketDoc.exists) {
+          throw new Error('Ticket not found');
+        }
+
+        const ticketData = ticketDoc.data();
+
+        if (ticketData?.status !== 'soft-locked' || ticketData?.sessionId !== sessionId) {
+          throw new Error('Ticket is no longer reserved for you');
+        }
+
+        // 3. Create order document
+        const newOrderRef = ordersRef.doc();
+        transaction.set(newOrderRef, {
+          ticketNumber,
+          name,
+          phone,
+          email,
+          parish,
+          transactionId,
+          amount,
+          status: 'pending',
+          createdAt: Timestamp.now(),
+          sessionId,
+        });
+
+        // 4. Update ticket with order ID atomically
+        transaction.update(ticketRef, {
+          orderId: newOrderRef.id,
+        });
+
+        return newOrderRef.id;
+      });
+    } catch (error) {
+      // Handle duplicate transaction gracefully
+      if (error instanceof Error && error.message.startsWith('DUPLICATE_TRANSACTION:')) {
+        const existingOrderId = error.message.split(':')[1];
+        return NextResponse.json(
+          { 
+            error: 'This transaction ID has already been used',
+            existingOrderId,
+          },
+          { status: 409 }
+        );
+      }
+      
+      // Re-throw other errors
+      throw error;
     }
 
-    if (existingOrder) {
-      return NextResponse.json(
-        { 
-          error: 'This transaction ID has already been used',
-          existingOrderId: existingOrder.id,
-        },
-        { status: 409 }
-      );
-    }
-
-    // Verify ticket is still locked by this session
-    const { data: ticket, error: ticketError } = await supabase
-      .from('lottery_tickets')
-      .select('*')
-      .eq('ticket_number', ticketNumber)
-      .single();
-
-    if (ticketError || !ticket) {
-      return NextResponse.json(
-        { error: 'Ticket not found' },
-        { status: 404 }
-      );
-    }
-
-    if (ticket.status !== 'soft-locked' || ticket.session_id !== sessionId) {
-      return NextResponse.json(
-        { error: 'Ticket is no longer reserved for you' },
-        { status: 400 }
-      );
-    }
-
-    // Create order
-    const { data: newOrder, error: orderError } = await supabase
-      .from('lottery_orders')
-      .insert({
-        ticket_number: ticketNumber,
-        name,
-        phone,
-        email,
-        parish,
-        transaction_id: transactionId,
-        amount,
-        status: 'pending',
-        session_id: sessionId,
-      })
-      .select()
-      .single();
-
-    if (orderError) throw orderError;
-
-    const orderId = newOrder.id;
-
-    // Update ticket with order ID
-    const { error: updateError } = await supabase
-      .from('lottery_tickets')
-      .update({ order_id: orderId })
-      .eq('ticket_number', ticketNumber);
-
-    if (updateError) throw updateError;
-
-    // Send emails in background (non-blocking)
+    // Send emails asynchronously (non-blocking)
     const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
     
+    // Send emails in background but don't block the response
     setImmediate(async () => {
       try {
+        console.log('[Lottery Order] Sending admin email...');
+
         // Send email notification to admins
         const adminEmailHtml = `
         <!DOCTYPE html>
@@ -184,12 +199,18 @@ export async function POST(request: NextRequest) {
         </html>
       `;
 
-        await resend.emails.send({
-          from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
-          to: EMAIL_RECIPIENTS,
-          subject: `New Lottery Order - Ticket #${ticketNumber} - ${name}`,
-          html: adminEmailHtml,
-        });
+        try {
+          console.log('[Lottery Order] Sending admin email to:', EMAIL_RECIPIENTS.join(','));
+          await resend.emails.send({
+            from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
+            to: EMAIL_RECIPIENTS,
+            subject: `New Lottery Order - Ticket #${ticketNumber} - ${name}`,
+            html: adminEmailHtml,
+          });
+          console.log('[Lottery Order] Admin email sent successfully');
+        } catch (emailError) {
+          console.error('[Lottery Order] Error sending admin email:', emailError);
+        }
 
         // Send confirmation email to customer
         const customerEmailHtml = `
@@ -242,7 +263,7 @@ export async function POST(request: NextRequest) {
               
               <div class="highlight-box">
                 <p><strong>📞 For Queries:</strong></p>
-                <p>Contact us at <strong style="color: #FB923C;">+91 7875947907</strong></p>
+                <p>Contact us at <strong style="color: #FB923C;">+91 8551098035</strong></p>
               </div>
               
               <p>Thank you for supporting CYP Vasai Fundraiser! 🎉</p>
@@ -253,14 +274,20 @@ export async function POST(request: NextRequest) {
         </html>
       `;
 
-        await resend.emails.send({
-          from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
-          to: [email],
-          subject: `Lottery Ticket Order Confirmation - Ticket #${ticketNumber}`,
-          html: customerEmailHtml,
-        });
+        try {
+          console.log('[Lottery Order] Sending customer email to:', email);
+          await resend.emails.send({
+            from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
+            to: [email],
+            subject: `Lottery Ticket Order Confirmation - Ticket #${ticketNumber}`,
+            html: customerEmailHtml,
+          });
+          console.log('[Lottery Order] Customer email sent successfully');
+        } catch (emailError) {
+          console.error('[Lottery Order] Error sending customer email:', emailError);
+        }
       } catch (error) {
-        console.error('[Lottery Order] Error sending emails:', error);
+        console.error('[Lottery Order] Error in background email sending:', error);
       }
     });
 

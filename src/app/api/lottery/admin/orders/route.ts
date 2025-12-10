@@ -1,31 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-
-// Initialize Firebase Admin if not already initialized
-if (getApps().length === 0) {
-  const credentials = JSON.parse(
-    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || '', 'base64').toString('utf-8')
-  );
-
-  initializeApp({
-    credential: cert(credentials)
-  });
-}
-
-const db = getFirestore();
+import { createServerSupabaseClient } from '@/app/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    const ordersRef = db.collection('lottery_orders');
-    const snapshot = await ordersRef.orderBy('createdAt', 'desc').get();
+    const supabase = createServerSupabaseClient();
+    
+    const { data: orders, error } = await supabase
+      .from('lottery_orders')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    const orders = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    if (error) throw error;
 
-    return NextResponse.json({ orders });
+    // Format the response to match the expected structure
+    const formattedOrders = orders?.map(order => ({
+      id: order.id,
+      ticketNumber: order.ticket_number,
+      name: order.name,
+      phone: order.phone,
+      email: order.email,
+      parish: order.parish,
+      transactionId: order.transaction_id,
+      amount: order.amount,
+      status: order.status,
+      createdAt: order.created_at,
+      confirmedAt: order.confirmed_at,
+      declinedAt: order.declined_at,
+    })) || [];
+
+    return NextResponse.json({ orders: formattedOrders });
   } catch (error) {
     console.error('Error fetching lottery orders:', error);
     return NextResponse.json(

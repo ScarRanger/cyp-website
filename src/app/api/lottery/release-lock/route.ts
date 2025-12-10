@@ -1,19 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-
-// Initialize Firebase Admin if not already initialized
-if (getApps().length === 0) {
-  const credentials = JSON.parse(
-    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || '', 'base64').toString('utf-8')
-  );
-
-  initializeApp({
-    credential: cert(credentials)
-  });
-}
-
-const db = getFirestore();
+import { createServerSupabaseClient } from '@/app/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,25 +13,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ticketRef = db.collection('lottery_tickets').doc(ticketNumber.toString());
-    const ticketDoc = await ticketRef.get();
+    const supabase = createServerSupabaseClient();
 
-    if (!ticketDoc.exists) {
+    // Get ticket
+    const { data: ticket, error: ticketError } = await supabase
+      .from('lottery_tickets')
+      .select('*')
+      .eq('ticket_number', ticketNumber)
+      .single();
+
+    if (ticketError || !ticket) {
       return NextResponse.json(
         { error: 'Ticket not found' },
         { status: 404 }
       );
     }
 
-    const ticketData = ticketDoc.data();
+    // Only release if locked by this session AND no order has been placed
+    if (ticket.status === 'soft-locked' && ticket.session_id === sessionId) {
+      if (ticket.order_id) {
+        return NextResponse.json({
+          success: false,
+          message: 'Cannot release - order already placed for this ticket',
+        });
+      }
 
-    // Only release if locked by this session
-    if (ticketData?.status === 'soft-locked' && ticketData?.sessionId === sessionId) {
-      await ticketRef.update({
-        status: 'available',
-        sessionId: null,
-        lockedAt: null,
-      });
+      // Release the lock
+      const { error: updateError } = await supabase
+        .from('lottery_tickets')
+        .update({
+          status: 'available',
+          session_id: null,
+          locked_at: null,
+        })
+        .eq('ticket_number', ticketNumber);
+
+      if (updateError) throw updateError;
 
       return NextResponse.json({
         success: true,

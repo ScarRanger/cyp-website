@@ -20,30 +20,37 @@ if (getApps().length === 0) {
 const db = getFirestore();
 
 async function initializeLotteryTickets() {
-  console.log('Initializing 50 lottery tickets...');
+  console.log('Initializing lottery tickets...');
 
   const batch = db.batch();
 
-  for (let i = 1; i <= 50; i++) {
-    const ticketRef = db.collection('lottery_tickets').doc(i.toString());
-    
-    batch.set(ticketRef, {
-      ticketNumber: i,
-      status: 'available',
-      sessionId: null,
-      lockedAt: null,
-      orderId: null,
-    });
+  const ranges = [
+    [851, 900],
+    [951, 1000],
+  ];
 
-    console.log(`✓ Ticket #${i} prepared`);
+  for (const [start, end] of ranges) {
+    for (let i = start; i <= end; i++) {
+      const ticketRef = db.collection('lottery_tickets').doc(i.toString());
+      
+      batch.set(ticketRef, {
+        ticketNumber: i,
+        status: 'available',
+        sessionId: null,
+        lockedAt: null,
+        orderId: null,
+      });
+
+      console.log(`✓ Ticket #${i} prepared`);
+    }
   }
 
   await batch.commit();
-  console.log('\n✅ Successfully created 50 lottery tickets in Firestore!');
-  console.log('Collection: lottery_tickets');
-  console.log('Tickets: 1-50');
-  console.log('Initial status: available');
+
+  console.log('\n✅ Successfully created lottery tickets!');
+  console.log('Ranges initialized: 851–900 and 951–1000');
 }
+
 
 initializeLotteryTickets()
   .then(() => process.exit(0))

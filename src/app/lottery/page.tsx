@@ -37,6 +37,9 @@ export default function LotteryPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
+  const [ticketsBeingSelected, setTicketsBeingSelected] = useState<Set<number>>(new Set());
+  const [lockQueue, setLockQueue] = useState<number[]>([]);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   // Generate session ID on mount
   useEffect(() => {
@@ -47,9 +50,52 @@ export default function LotteryPage() {
   // Fetch ticket status
   useEffect(() => {
     fetchTicketStatus();
-    const interval = setInterval(fetchTicketStatus, 10000); // Refresh every 10 seconds
+    const interval = setInterval(fetchTicketStatus, 60000); // Refresh every 60 seconds
     return () => clearInterval(interval);
   }, []);
+
+  // Process lock queue sequentially
+  useEffect(() => {
+    if (isProcessingQueue || lockQueue.length === 0) return;
+
+    const processQueue = async () => {
+      setIsProcessingQueue(true);
+      const ticketNumber = lockQueue[0];
+
+      try {
+        const response = await fetch('/api/lottery/soft-lock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketNumber, sessionId }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          // Rollback on error
+          setSelectedTickets(prev => prev.filter(t => t !== ticketNumber));
+          console.error(`Failed to lock ticket ${ticketNumber}:`, data.error);
+          alert(data.error || `Failed to select ticket ${ticketNumber}`);
+        }
+      } catch (error) {
+        console.error(`Error selecting ticket ${ticketNumber}:`, error);
+        setSelectedTickets(prev => prev.filter(t => t !== ticketNumber));
+        alert(`Failed to select ticket ${ticketNumber}`);
+      } finally {
+        setTicketsBeingSelected(prev => {
+          const updated = new Set(prev);
+          updated.delete(ticketNumber);
+          return updated;
+        });
+        
+        // Remove from queue and process next
+        setLockQueue(prev => prev.slice(1));
+        setIsProcessingQueue(false);
+      }
+    };
+
+    processQueue();
+  }, [lockQueue, isProcessingQueue, sessionId]);
 
   // Timer countdown
   useEffect(() => {
@@ -69,15 +115,66 @@ export default function LotteryPage() {
     return () => clearInterval(interval);
   }, [timerActive, timeLeft]);
 
+  // Cleanup on page unload - release all locked tickets
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (selectedTickets.length > 0) {
+        // Use sendBeacon for reliable cleanup during page unload
+        const releasePromises = selectedTickets.map(ticketNumber => {
+          const payload = JSON.stringify({ ticketNumber, sessionId });
+          // Try sendBeacon first (more reliable during unload)
+          const beaconSent = navigator.sendBeacon('/api/lottery/release-lock', 
+            new Blob([payload], { type: 'application/json' })
+          );
+          
+          // Fallback to fetch with keepalive if sendBeacon fails
+          if (!beaconSent) {
+            return fetch('/api/lottery/release-lock', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: payload,
+              keepalive: true, // Ensures request completes even after page closes
+            }).catch(() => {}); // Ignore errors during cleanup
+          }
+          return Promise.resolve();
+        });
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Also cleanup on component unmount (navigation within app)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      
+      // Release locks if navigating away
+      if (selectedTickets.length > 0 && sessionId) {
+        selectedTickets.forEach(ticketNumber => {
+          const payload = JSON.stringify({ ticketNumber, sessionId });
+          navigator.sendBeacon('/api/lottery/release-lock',
+            new Blob([payload], { type: 'application/json' })
+          );
+        });
+      }
+    };
+  }, [selectedTickets, sessionId]);
+
   const fetchTicketStatus = async () => {
     try {
-      const response = await fetch('/api/lottery/tickets');
+      // Pass sessionId to distinguish between my tickets and others' soft-locked tickets
+      const url = sessionId ? `/api/lottery/tickets?sessionId=${sessionId}` : '/api/lottery/tickets';
+      const response = await fetch(url);
       const data = await response.json();
       
       if (response.ok) {
         setAvailableTickets(data.available || []);
-        setSoftLockedTickets(data.softLocked || []);
+        setSoftLockedTickets(data.softLocked || []); // Only tickets locked by OTHER users
         setSoldTickets(data.sold || []);
+        
+        // Update selected tickets with tickets locked by current session
+        if (data.myTickets && data.myTickets.length > 0) {
+          setSelectedTickets(data.myTickets);
+        }
       }
     } catch (error) {
       console.error('Error fetching tickets:', error);
@@ -85,54 +182,61 @@ export default function LotteryPage() {
   };
 
   const handleTicketSelect = async (ticketNumber: number) => {
-    if (soldTickets.includes(ticketNumber) || (softLockedTickets.includes(ticketNumber) && !selectedTickets.includes(ticketNumber))) {
-      return; // Can't select sold or locked tickets
+    // Prevent spam clicking - check if already processing
+    if (ticketsBeingSelected.has(ticketNumber)) {
+      return;
     }
 
-    // Check if already selected (toggle off)
+    // Check if ticket is sold (not available at all)
+    if (soldTickets.includes(ticketNumber)) {
+      return;
+    }
+
+    // Check if already selected by this session (can deselect)
     if (selectedTickets.includes(ticketNumber)) {
+      // Deselect: Remove from selected immediately (optimistic update)
       setSelectedTickets(prev => prev.filter(t => t !== ticketNumber));
-      // Release the lock
-      try {
-        await fetch('/api/lottery/release-lock', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ticketNumber, sessionId }),
-        });
-      } catch (error) {
-        console.error('Error releasing lock:', error);
-      }
+      
+      // Release the lock in background
+      fetch('/api/lottery/release-lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketNumber, sessionId }),
+      }).catch(error => console.error('Error releasing lock:', error));
+      
+      return;
+    }
+
+    // Check if soft-locked by another session (can't select)
+    if (softLockedTickets.includes(ticketNumber)) {
       return;
     }
 
     // Check if we've reached the limit
-    if (ticketCount && selectedTickets.length >= ticketCount) {
+    if (selectedTickets.length >= ticketCount) {
       alert(`You can only select ${ticketCount} ticket${ticketCount > 1 ? 's' : ''}`);
       return;
     }
 
-    try {
-      const response = await fetch('/api/lottery/soft-lock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticketNumber, sessionId }),
-      });
+    // Mark as being selected to prevent spam
+    setTicketsBeingSelected(prev => new Set([...prev, ticketNumber]));
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setSelectedTickets(prev => [...prev, ticketNumber]);
-        if (!timerActive) {
-          setTimerActive(true);
-          setTimeLeft(TIMER_DURATION);
-        }
-      } else {
-        alert(data.error || 'Failed to select ticket');
+    // Optimistic update - add ticket immediately for better UX
+    setSelectedTickets(prev => {
+      if (prev.includes(ticketNumber)) {
+        return prev; // Already selected, don't add duplicate
       }
-    } catch (error) {
-      console.error('Error selecting ticket:', error);
-      alert('Failed to select ticket');
+      return [...prev, ticketNumber];
+    });
+
+    // Start timer if not active
+    if (!timerActive) {
+      setTimerActive(true);
+      setTimeLeft(TIMER_DURATION);
     }
+
+    // Add to queue for sequential processing (prevents race conditions)
+    setLockQueue(prev => [...prev, ticketNumber]);
   };
 
   const handleTimeout = async () => {
@@ -175,8 +279,20 @@ export default function LotteryPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent double submission
+    if (isSubmitting) {
+      return;
+    }
+    
     if (!formData.transactionId.trim()) {
       alert('Please enter UPI Transaction ID');
+      return;
+    }
+    
+    // Check timer hasn't expired
+    if (timeLeft <= 0) {
+      alert('Time expired! Please start again.');
+      handleTimeout();
       return;
     }
 
@@ -185,9 +301,12 @@ export default function LotteryPage() {
 
     try {
       // Submit orders for all selected tickets
+      // Make transaction ID unique per ticket by appending ticket number
       const promises = selectedTickets.map(ticketNumber => {
         const orderData = {
           ...formData,
+          // Append ticket number to transaction ID to make it unique
+          transactionId: `${formData.transactionId}-T${ticketNumber}`,
           ticketNumber,
           amount: LOTTERY_PRICE,
           sessionId,
@@ -201,9 +320,17 @@ export default function LotteryPage() {
       });
 
       const responses = await Promise.all(promises);
-      const allSuccessful = responses.every(r => r.ok);
+      
+      // Check for errors
+      const failed = [];
+      for (let i = 0; i < responses.length; i++) {
+        if (!responses[i].ok) {
+          const errorData = await responses[i].json();
+          failed.push({ ticket: selectedTickets[i], error: errorData.error });
+        }
+      }
 
-      if (allSuccessful) {
+      if (failed.length === 0) {
         setSubmitMessage('Order placed successfully! Check your email for confirmation. 🎉');
         setFormData({ name: '', phone: '', email: '', parish: '', transactionId: '' });
         setTimeout(() => {
@@ -211,7 +338,8 @@ export default function LotteryPage() {
           window.location.reload();
         }, 3000);
       } else {
-        setSubmitMessage('Some orders failed. Please contact support.');
+        console.error('Failed orders:', failed);
+        setSubmitMessage(`${responses.length - failed.length} ticket(s) successful, ${failed.length} failed. Please contact support.`);
       }
     } catch (error) {
       console.error('Error submitting order:', error);
@@ -387,7 +515,7 @@ export default function LotteryPage() {
             </div>
 
             <div className="text-sm p-3 rounded-lg" style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)', color: theme.text }}>
-              For queries, contact: <strong style={{ color: theme.primary }}>+91 8551098035</strong>
+              For queries, contact: <strong style={{ color: theme.primary }}>+91 7875947907</strong>
             </div>
 
             <Button
@@ -411,7 +539,7 @@ export default function LotteryPage() {
         <div className="mb-6">
           <div className="text-center mb-4">
             <h1 className="text-3xl font-bold mb-2" style={{ color: theme.text }}>CYP Fundraiser Lottery</h1>
-            <p className="text-lg" style={{ color: theme.text, opacity: 0.8 }}>Select your lucky ticket numbers (1-50)</p>
+            <p className="text-lg" style={{ color: theme.text, opacity: 0.8 }}>Select your lucky ticket numbers (851-900, 951-1000)</p>
           </div>
           
           {/* Ticket Count Selector */}
@@ -460,7 +588,7 @@ export default function LotteryPage() {
                 <span className="text-2xl md:text-3xl">🥇</span>
                 <div>
                   <div className="font-bold text-sm md:text-base" style={{ color: theme.text }}>1st Prize</div>
-                  <div className="text-xs md:text-sm" style={{ color: theme.primary }}>Smartphone</div>
+                  <div className="text-base md:text-lg font-semibold" style={{ color: theme.primary }}>Smartphone</div>
                 </div>
               </div>
             </div>
@@ -469,7 +597,7 @@ export default function LotteryPage() {
                 <span className="text-2xl md:text-3xl">🥈</span>
                 <div>
                   <div className="font-bold text-sm md:text-base" style={{ color: theme.text }}>2nd Prize</div>
-                  <div className="text-xs md:text-sm" style={{ color: theme.primary }}>Home Theatre</div>
+                  <div className="text-base md:text-lg font-semibold" style={{ color: theme.primary }}>Home Theatre</div>
                 </div>
               </div>
             </div>
@@ -478,7 +606,7 @@ export default function LotteryPage() {
                 <span className="text-2xl md:text-3xl">🥉</span>
                 <div>
                   <div className="font-bold text-sm md:text-base" style={{ color: theme.text }}>3rd Prize</div>
-                  <div className="text-xs md:text-sm" style={{ color: theme.primary }}>Air Fryer</div>
+                  <div className="text-base md:text-lg font-semibold" style={{ color: theme.primary }}>Air Fryer</div>
                 </div>
               </div>
             </div>
@@ -487,7 +615,7 @@ export default function LotteryPage() {
                 <span className="text-2xl md:text-3xl">🏅</span>
                 <div>
                   <div className="font-bold text-sm md:text-base" style={{ color: theme.text }}>4th Prize</div>
-                  <div className="text-xs md:text-sm" style={{ color: theme.primary }}>Mixer</div>
+                  <div className="text-base md:text-lg font-semibold" style={{ color: theme.primary }}>Mixer</div>
                 </div>
               </div>
             </div>
@@ -496,7 +624,7 @@ export default function LotteryPage() {
                 <span className="text-2xl md:text-3xl">🏅</span>
                 <div>
                   <div className="font-bold text-sm md:text-base" style={{ color: theme.text }}>5th Prize</div>
-                  <div className="text-xs md:text-sm" style={{ color: theme.primary }}>Iron</div>
+                  <div className="text-base md:text-lg font-semibold" style={{ color: theme.primary }}>Iron</div>
                 </div>
               </div>
             </div>
@@ -505,7 +633,7 @@ export default function LotteryPage() {
                 <span className="text-2xl md:text-3xl">🎁</span>
                 <div>
                   <div className="font-bold text-sm md:text-base" style={{ color: theme.text }}>6th-8th Prize</div>
-                  <div className="text-xs md:text-sm" style={{ color: theme.primary }}>Consolation Prizes</div>
+                  <div className="text-base md:text-lg font-semibold" style={{ color: theme.primary }}>Consolation Prizes</div>
                 </div>
               </div>
             </div>
@@ -524,8 +652,12 @@ export default function LotteryPage() {
               <span style={{ color: theme.text }}>Available</span>
             </div>
             <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-green-500"></div>
+              <span style={{ color: theme.text }}>Your Selection ✓</span>
+            </div>
+            <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded bg-yellow-500"></div>
-              <span style={{ color: theme.text }}>Reserved</span>
+              <span style={{ color: theme.text }}>Being Selected (5 min hold)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded bg-gray-500"></div>
@@ -535,30 +667,42 @@ export default function LotteryPage() {
         </div>
 
         <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 sm:gap-3">
-          {Array.from({ length: 50 }, (_, i) => i + 1).map((num) => {
+          {[...Array.from({ length: 50 }, (_, i) => 851 + i), ...Array.from({ length: 50 }, (_, i) => 951 + i)].map((num) => {
             const isSold = soldTickets.includes(num);
-            const isSoftLocked = softLockedTickets.includes(num) && !selectedTickets.includes(num);
-            const isSelected = selectedTickets.includes(num);
-            const isAvailable = !isSold && !isSoftLocked;
+            const isSelectedByMe = selectedTickets.includes(num);
+            const isSoftLockedByOthers = softLockedTickets.includes(num) && !isSelectedByMe;
+            
+            // Determine final state (priority: sold > soft-locked > selected > available)
+            const isClickable = !isSold && !isSoftLockedByOthers;
+            const isDisabled = isSold || isSoftLockedByOthers;
 
             return (
               <button
                 key={num}
-                onClick={() => isAvailable && handleTicketSelect(num)}
-                disabled={isSold || isSoftLocked}
+                onClick={() => isClickable && handleTicketSelect(num)}
+                disabled={isDisabled}
+                title={
+                  isSold 
+                    ? 'This ticket is sold' 
+                    : isSoftLockedByOthers 
+                    ? 'Someone is currently selecting this ticket (5 min hold)' 
+                    : isSelectedByMe 
+                    ? 'You selected this ticket' 
+                    : 'Click to select this ticket'
+                }
                 className={`aspect-square rounded-lg font-bold text-lg transition-all ${
-                  isAvailable ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-60'
+                  !isDisabled ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-60'
                 }`}
                 style={{
-                  backgroundColor: isSold ? '#6b7280' : isSoftLocked ? '#eab308' : isSelected ? '#22c55e' : theme.primary,
+                  backgroundColor: isSold ? '#6b7280' : isSoftLockedByOthers ? '#eab308' : isSelectedByMe ? '#22c55e' : theme.primary,
                   color: theme.background,
                   border: '2px solid',
-                  borderColor: isSold ? '#4b5563' : isSoftLocked ? '#ca8a04' : isSelected ? '#16a34a' : theme.primary,
-                  transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                  borderColor: isSold ? '#4b5563' : isSoftLockedByOthers ? '#ca8a04' : isSelectedByMe ? '#16a34a' : theme.primary,
+                  transform: isSelectedByMe ? 'scale(1.05)' : 'scale(1)',
                 }}
               >
                 {num}
-                {isSelected && <span className="text-xs block">✓</span>}
+                {isSelectedByMe && <span className="text-xs block">✓</span>}
               </button>
             );
           })}

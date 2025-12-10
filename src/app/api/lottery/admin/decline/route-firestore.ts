@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/app/lib/supabase';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { Resend } from 'resend';
 
+// Initialize Firebase Admin if not already initialized
+if (getApps().length === 0) {
+  const credentials = JSON.parse(
+    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || '', 'base64').toString('utf-8')
+  );
+
+  initializeApp({
+    credential: cert(credentials)
+  });
+}
+
+const db = getFirestore();
+
+// Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
@@ -16,52 +31,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createServerSupabaseClient();
-
     // Get order details
-    const { data: order, error: orderError } = await supabase
-      .from('lottery_orders')
-      .select('*')
-      .eq('id', orderId)
-      .single();
+    const orderRef = db.collection('lottery_orders').doc(orderId);
+    const orderDoc = await orderRef.get();
 
-    if (orderError || !order) {
+    if (!orderDoc.exists) {
       return NextResponse.json(
         { error: 'Order not found' },
         { status: 404 }
       );
     }
 
-    if (order.status !== 'pending') {
-      return NextResponse.json(
-        { error: 'Order is not pending' },
-        { status: 400 }
-      );
-    }
+    // Use transaction to ensure atomic updates
+    let orderData: any;
+    
+    await db.runTransaction(async (transaction) => {
+      // Re-read order within transaction
+      const orderDoc = await transaction.get(orderRef);
+      
+      if (!orderDoc.exists) {
+        throw new Error('Order not found');
+      }
 
-    // Release ticket back to available pool
-    const { error: updateTicketError } = await supabase
-      .from('lottery_tickets')
-      .update({
+      orderData = orderDoc.data();
+
+      if (orderData?.status !== 'pending') {
+        throw new Error('Order is not pending');
+      }
+
+      // Atomically update both ticket and order
+      const ticketRef = db.collection('lottery_tickets').doc(orderData.ticketNumber.toString());
+      transaction.update(ticketRef, {
         status: 'available',
-        session_id: null,
-        locked_at: null,
-        order_id: null,
-      })
-      .eq('ticket_number', order.ticket_number);
+        sessionId: null,
+        lockedAt: null,
+        orderId: null,
+      });
 
-    if (updateTicketError) throw updateTicketError;
-
-    // Update order status to declined
-    const { error: updateOrderError } = await supabase
-      .from('lottery_orders')
-      .update({
+      transaction.update(orderRef, {
         status: 'declined',
-        declined_at: new Date().toISOString(),
-      })
-      .eq('id', orderId);
-
-    if (updateOrderError) throw updateOrderError;
+        declinedAt: Timestamp.now(),
+      });
+    });
 
     // Send decline notification email
     const declineHtml = `
@@ -86,7 +97,7 @@ export async function POST(request: NextRequest) {
           </div>
           
           <div class="content">
-            <p>Dear ${order.name},</p>
+            <p>Dear ${orderData.name},</p>
             
             <div class="notice-box">
               <p style="margin: 0; font-weight: bold; color: #ef4444;">Your lottery ticket order has been declined by our admin team.</p>
@@ -96,13 +107,13 @@ export async function POST(request: NextRequest) {
             
             <div class="info-box">
               <p style="margin: 5px 0;"><strong>Order ID:</strong> ${orderId}</p>
-              <p style="margin: 5px 0;"><strong>Ticket Number:</strong> #${order.ticket_number}</p>
-              <p style="margin: 5px 0;"><strong>Transaction ID:</strong> ${order.transaction_id}</p>
-              <p style="margin: 5px 0;"><strong>Amount:</strong> ₹${order.amount}</p>
+              <p style="margin: 5px 0;"><strong>Ticket Number:</strong> #${orderData.ticketNumber}</p>
+              <p style="margin: 5px 0;"><strong>Transaction ID:</strong> ${orderData.transactionId}</p>
+              <p style="margin: 5px 0;"><strong>Amount:</strong> ₹${orderData.amount}</p>
             </div>
             
             <h3 style="color: #FB923C;">What This Means</h3>
-            <p>The ticket <strong>#${order.ticket_number}</strong> has been released and is now available for others to purchase. This could be due to:</p>
+            <p>The ticket <strong>#${orderData.ticketNumber}</strong> has been released and is now available for others to purchase. This could be due to:</p>
             <ul>
               <li>Payment verification issues</li>
               <li>Incomplete transaction details</li>
@@ -112,14 +123,14 @@ export async function POST(request: NextRequest) {
             <h3 style="color: #FB923C;">Next Steps</h3>
             <p>If you believe this was an error or would like to purchase another ticket, please:</p>
             <ul>
-              <li>Contact us at <strong style="color: #FB923C;">+91 7875947907</strong></li>
+              <li>Contact us at <strong style="color: #FB923C;">+91 8551098035</strong></li>
               <li>Email us with your order details</li>
               <li>Visit our lottery page to select a new ticket</li>
             </ul>
             
             <div style="background-color: #fff3e0; padding: 20px; border-radius: 8px; margin-top: 30px; border: 2px solid #FB923C;">
               <p style="margin: 0; font-weight: bold; color: #FB923C;">📱 Need Help?</p>
-              <p style="margin: 10px 0 0 0;">Contact us at <strong style="color: #FB923C;">+91 7875947907</strong></p>
+              <p style="margin: 10px 0 0 0;">Contact us at <strong style="color: #FB923C;">+91 8551098035</strong></p>
               <p style="margin: 10px 0 0 0;">Email: <strong style="color: #FB923C;">admin@cypvasai.org</strong></p>
             </div>
           </div>
@@ -133,11 +144,12 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
+    // Send email (await to ensure it completes in production)
     try {
       await resend.emails.send({
         from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
-        to: [order.email],
-        subject: `⚠️ CYP Lottery - Order Declined (Ticket #${order.ticket_number})`,
+        to: [orderData.email],
+        subject: `⚠️ CYP Lottery - Order Declined (Ticket #${orderData.ticketNumber})`,
         html: declineHtml,
       });
     } catch (err) {
@@ -146,7 +158,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Order declined and ticket released',
+      message: 'Order declined, ticket released, and customer notified',
     });
   } catch (error) {
     console.error('Error declining order:', error);
