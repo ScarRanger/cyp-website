@@ -33,7 +33,6 @@ export default function LotteryPage() {
     phone: '',
     email: '',
     parish: '',
-    transactionId: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
@@ -266,7 +265,7 @@ export default function LotteryPage() {
   };
 
   const copyUpiId = () => {
-    navigator.clipboard.writeText('dabrecarren10-2@oksbi');
+    navigator.clipboard.writeText('rhine.pereira@okhdfcbank');
     alert('UPI ID copied to clipboard!');
   };
 
@@ -284,11 +283,6 @@ export default function LotteryPage() {
       return;
     }
     
-    if (!formData.transactionId.trim()) {
-      alert('Please enter UPI Transaction ID');
-      return;
-    }
-    
     // Check timer hasn't expired
     if (timeLeft <= 0) {
       alert('Time expired! Please start again.');
@@ -300,46 +294,53 @@ export default function LotteryPage() {
     setSubmitMessage('');
 
     try {
-      // Submit orders for all selected tickets
-      // Make transaction ID unique per ticket by appending ticket number
-      const promises = selectedTickets.map(ticketNumber => {
+      // Auto-generate base transaction ID (not visible to user)
+      const autoTransactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Submit orders SEQUENTIALLY (not in parallel) to prevent race conditions
+      const failed = [];
+      const succeeded = [];
+      
+      for (const ticketNumber of selectedTickets) {
         const orderData = {
           ...formData,
-          // Append ticket number to transaction ID to make it unique
-          transactionId: `${formData.transactionId}-T${ticketNumber}`,
+          // Make transaction ID unique per ticket
+          transactionId: `${autoTransactionId}-T${ticketNumber}`,
           ticketNumber,
           amount: LOTTERY_PRICE,
           sessionId,
         };
 
-        return fetch('/api/lottery/order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderData),
-        });
-      });
+        try {
+          const response = await fetch('/api/lottery/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData),
+          });
 
-      const responses = await Promise.all(promises);
-      
-      // Check for errors
-      const failed = [];
-      for (let i = 0; i < responses.length; i++) {
-        if (!responses[i].ok) {
-          const errorData = await responses[i].json();
-          failed.push({ ticket: selectedTickets[i], error: errorData.error });
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error(`Failed to submit ticket ${ticketNumber}:`, errorData);
+            failed.push({ ticket: ticketNumber, error: errorData.error });
+          } else {
+            succeeded.push(ticketNumber);
+          }
+        } catch (error) {
+          console.error(`Error submitting ticket ${ticketNumber}:`, error);
+          failed.push({ ticket: ticketNumber, error: 'Network error' });
         }
       }
 
       if (failed.length === 0) {
-        setSubmitMessage('Order placed successfully! Check your email for confirmation. 🎉');
-        setFormData({ name: '', phone: '', email: '', parish: '', transactionId: '' });
+        setSubmitMessage('Order placed successfully! You will receive your E-Ticket via email within a few hours. 🎉');
+        setFormData({ name: '', phone: '', email: '', parish: '' });
         setTimeout(() => {
           router.push('/lottery');
           window.location.reload();
         }, 3000);
       } else {
         console.error('Failed orders:', failed);
-        setSubmitMessage(`${responses.length - failed.length} ticket(s) successful, ${failed.length} failed. Please contact support.`);
+        setSubmitMessage(`${succeeded.length} ticket(s) successful, ${failed.length} failed. Errors: ${failed.map(f => `#${f.ticket}: ${f.error}`).join(', ')}`);
       }
     } catch (error) {
       console.error('Error submitting order:', error);
@@ -458,6 +459,16 @@ export default function LotteryPage() {
               />
             </div>
 
+            <div className="p-4 rounded-lg border" style={{ backgroundColor: '#fff3e0', borderColor: theme.primary, border: '2px solid' }}>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">📧</span>
+                <div>
+                  <h3 className="font-semibold mb-1" style={{ color: theme.text }}>E-Ticket Delivery</h3>
+                  <p className="text-sm" style={{ color: theme.text }}>Your E-Ticket will be sent to your email within a few hours after payment verification. Please check your inbox and spam folder.</p>
+                </div>
+              </div>
+            </div>
+
             <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgba(251, 146, 60, 0.05)', borderColor: theme.border }}>
               <h3 className="font-semibold mb-3" style={{ color: theme.text }}>UPI Payment</h3>
               
@@ -479,23 +490,6 @@ export default function LotteryPage() {
                   </Button>
                 </div>
               </div>
-
-              <div>
-                <label htmlFor="transactionId" className="block text-sm font-medium mb-2" style={{ color: theme.text }}>
-                  UPI Transaction ID *
-                </label>
-                <input
-                  type="text"
-                  id="transactionId"
-                  name="transactionId"
-                  required
-                  value={formData.transactionId}
-                  onChange={handleChange}
-                  placeholder="Enter transaction ID after payment"
-                  className="w-full px-4 py-2 rounded-md border"
-                  style={{ backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }}
-                />
-              </div>
             </div>
 
             {submitMessage && (
@@ -510,17 +504,13 @@ export default function LotteryPage() {
               </div>
             )}
 
-            <div className="text-sm p-3 rounded-lg text-center" style={{ backgroundColor: 'rgba(251, 146, 60, 0.05)', borderColor: theme.border, color: theme.text }}>
-              You will receive a confirmation email. The E-Ticket will be sent after payment verification.
-            </div>
-
             <div className="text-sm p-3 rounded-lg" style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)', color: theme.text }}>
               For queries, contact: <strong style={{ color: theme.primary }}>+91 7875947907</strong>
             </div>
 
             <Button
               type="submit"
-              disabled={isSubmitting || !formData.transactionId.trim()}
+              disabled={isSubmitting}
               size="lg"
               className="w-full font-semibold"
               style={{ backgroundColor: theme.primary, color: theme.background }}

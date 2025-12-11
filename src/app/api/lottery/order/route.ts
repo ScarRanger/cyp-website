@@ -13,8 +13,9 @@ const EMAIL_RECIPIENTS = [
   "crystal.colaco@gmail.com"
 ].filter(Boolean);
 
-// Initialize Resend
+// Initialize Resend with fallback support
 const resend = new Resend(process.env.RESEND_API_KEY);
+const resendFallback = process.env.RESEND_API_KEY2 ? new Resend(process.env.RESEND_API_KEY2) : null;
 
 export async function POST(request: NextRequest) {
   try {
@@ -184,81 +185,29 @@ export async function POST(request: NextRequest) {
         </html>
       `;
 
-        await resend.emails.send({
-          from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
-          to: EMAIL_RECIPIENTS,
-          subject: `New Lottery Order - Ticket #${ticketNumber} - ${name}`,
-          html: adminEmailHtml,
-        });
+        // Try primary, fallback to secondary if it fails
+        try {
+          await resend.emails.send({
+            from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
+            to: EMAIL_RECIPIENTS,
+            subject: `New Lottery Order - Ticket #${ticketNumber} - ${name}`,
+            html: adminEmailHtml,
+          });
+        } catch (primaryError) {
+          console.log('[Email] Primary Resend failed, trying fallback:', primaryError);
+          if (resendFallback) {
+            await resendFallback.emails.send({
+              from: 'CYP Lottery <lottery@fundraisers.cypvasai.org>',
+              to: EMAIL_RECIPIENTS,
+              subject: `New Lottery Order - Ticket #${ticketNumber} - ${name}`,
+              html: adminEmailHtml,
+            });
+          } else {
+            throw primaryError;
+          }
+        }
 
-        // Send confirmation email to customer
-        const customerEmailHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #FB923C; color: #1C1917; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-            .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-            .ticket { font-size: 48px; font-weight: bold; color: #FB923C; text-align: center; margin: 30px 0; padding: 20px; background-color: white; border-radius: 8px; }
-            .field { margin: 15px 0; padding: 10px; background-color: white; border-left: 4px solid #FB923C; }
-            .label { font-weight: bold; color: #FB923C; }
-            .value { margin-top: 5px; }
-            .highlight-box { background-color: #fff3e0; padding: 15px; border-radius: 8px; margin: 20px 0; border: 2px solid #FB923C; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>✅ Order Confirmation</h1>
-            </div>
-            <div class="content">
-              <p>Dear ${name},</p>
-              <p>Thank you for your lottery ticket purchase! We have received your order.</p>
-              
-              <div class="ticket">Ticket #${ticketNumber}</div>
-              
-              <div class="field">
-                <div class="label">Order ID:</div>
-                <div class="value">${orderId}</div>
-              </div>
-              
-              <div class="field">
-                <div class="label">Amount Paid:</div>
-                <div class="value"><strong>₹${amount}</strong></div>
-              </div>
-              
-              <div class="field">
-                <div class="label">UPI Transaction ID:</div>
-                <div class="value">${transactionId}</div>
-              </div>
-              
-              <div class="highlight-box">
-                <p><strong>📧 E-Ticket Delivery:</strong></p>
-                <p>Your E-Ticket will be sent to this email address after payment verification. This usually takes a few hours.</p>
-                <p style="margin-top: 10px; font-size: 14px; color: #666;">⚠️ Please check your junk or spam inbox as well.</p>
-              </div>
-              
-              <div class="highlight-box">
-                <p><strong>📞 For Queries:</strong></p>
-                <p>Contact us at <strong style="color: #FB923C;">+91 7875947907</strong></p>
-              </div>
-              
-              <p>Thank you for supporting CYP Vasai Fundraiser! 🎉</p>
-              <p>Visit: <a href="https://cypvasai.org">cypvasai.org</a></p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-        await resend.emails.send({
-          from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
-          to: [email],
-          subject: `Lottery Ticket Order Confirmation - Ticket #${ticketNumber}`,
-          html: customerEmailHtml,
-        });
+        // Customer will only receive E-Ticket email after admin approval (no confirmation email)
       } catch (error) {
         console.error('[Lottery Order] Error sending emails:', error);
       }

@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/app/lib/supabase';
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const resendFallback = process.env.RESEND_API_KEY2 ? new Resend(process.env.RESEND_API_KEY2) : null;
 
 export async function POST(request: NextRequest) {
   try {
@@ -130,7 +131,13 @@ export async function POST(request: NextRequest) {
             </div>
             
             <div style="background-color: #fff3e0; padding: 20px; border-radius: 8px; margin-top: 30px; border: 2px solid #FB923C;">
-              <p style="margin: 0; font-weight: bold; color: #FB923C;">📱 For Queries:</p>
+              <p style="margin: 0; font-weight: bold; color: #FB923C; font-size: 18px;">🎉 Draw Details</p>
+              <p style="margin: 10px 0 0 0; font-size: 16px;"><strong>Date:</strong> 29th December 2025</p>
+              <p style="margin: 5px 0 0 0; font-size: 16px;"><strong>Venue:</strong> Jeevan Darshan Kendra, Giriz</p>
+            </div>
+            
+            <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin-top: 20px; border: 2px solid #22c55e;">
+              <p style="margin: 0; font-weight: bold; color: #22c55e;">📱 For Queries:</p>
               <p style="margin: 10px 0 0 0;">Contact us at <strong style="color: #FB923C;">+91 7875947907</strong></p>
             </div>
           </div>
@@ -146,14 +153,29 @@ export async function POST(request: NextRequest) {
     `;
 
     try {
-      await resend.emails.send({
-        from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
-        to: [order.email],
-        subject: `🎟️ Your CYP Lottery E-Ticket - Ticket #${order.ticket_number}`,
-        html: eTicketHtml,
-      });
+      // Try primary, fallback to secondary if it fails
+      try {
+        await resend.emails.send({
+          from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
+          to: [order.email],
+          subject: `🎟️ Your CYP Lottery E-Ticket - Ticket #${order.ticket_number}`,
+          html: eTicketHtml,
+        });
+      } catch (primaryError) {
+        console.log('[Email] Primary Resend failed, trying fallback:', primaryError);
+        if (resendFallback) {
+          await resendFallback.emails.send({
+            from: 'CYP Lottery <lottery@fundraisers.cypvasai.org>',
+            to: [order.email],
+            subject: `🎟️ Your CYP Lottery E-Ticket - Ticket #${order.ticket_number}`,
+            html: eTicketHtml,
+          });
+        } else {
+          throw primaryError;
+        }
+      }
     } catch (err) {
-      console.error('Error sending e-ticket email:', err);
+      console.error('Error sending e-ticket email (both attempts):', err);
     }
 
     return NextResponse.json({
