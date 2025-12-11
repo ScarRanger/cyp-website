@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/app/lib/supabase';
 import { Resend } from 'resend';
+import { google } from 'googleapis';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const resendFallback = process.env.RESEND_API_KEY2 ? new Resend(process.env.RESEND_API_KEY2) : null;
+
+const LOTTERY_SHEET_ID = '1ODlIMild9QS0wHSQny3BV1dQVqCrxEMqxGwdP9d8iFY';
+const SHEET_NAME = 'Lottery';
 
 export async function POST(request: NextRequest) {
   try {
@@ -177,6 +181,57 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error('Error sending e-ticket email (both attempts):', err);
     }
+
+    // Append to Google Sheets in background
+    setImmediate(async () => {
+      try {
+        // Decode base64 service account JSON
+        const serviceAccount = JSON.parse(
+          Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_BASE64 || '', 'base64').toString('utf8')
+        );
+
+        const auth = new google.auth.GoogleAuth({
+          credentials: {
+            client_email: serviceAccount.client_email,
+            private_key: serviceAccount.private_key,
+          },
+          scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+
+
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        // Prepare row data
+        const rowData = [
+          orderId,
+          order.ticket_number,
+          order.name,
+          order.phone,
+          order.email,
+          order.parish,
+          order.transaction_id,
+          order.amount,
+          'confirmed',
+          new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+          order.created_at ? new Date(order.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '',
+        ];
+
+        // Append to sheet
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: LOTTERY_SHEET_ID,
+          range: `${SHEET_NAME}!A:K`,
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [rowData],
+          },
+        });
+
+        console.log(`✅ Order ${orderId} appended to Google Sheets`);
+      } catch (sheetError) {
+        console.error('Error appending to Google Sheets:', sheetError);
+        // Don't fail the request if sheets fails
+      }
+    });
 
     return NextResponse.json({
       success: true,

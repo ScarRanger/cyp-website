@@ -39,6 +39,7 @@ export default function LotteryPage() {
   const [ticketsBeingSelected, setTicketsBeingSelected] = useState<Set<number>>(new Set());
   const [lockQueue, setLockQueue] = useState<number[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+  const [hasPaid, setHasPaid] = useState(false);
 
   // Generate session ID on mount
   useEffect(() => {
@@ -459,12 +460,12 @@ export default function LotteryPage() {
               />
             </div>
 
-            <div className="p-4 rounded-lg border" style={{ backgroundColor: '#fff3e0', borderColor: theme.primary, border: '2px solid' }}>
+            <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)', borderColor: theme.border }}>
               <div className="flex items-start gap-3">
                 <span className="text-2xl">📧</span>
                 <div>
                   <h3 className="font-semibold mb-1" style={{ color: theme.text }}>E-Ticket Delivery</h3>
-                  <p className="text-sm" style={{ color: theme.text }}>Your E-Ticket will be sent to your email within a few hours after payment verification. Please check your inbox and spam folder.</p>
+                  <p className="text-sm" style={{ color: theme.text, opacity: 0.9 }}>Your E-Ticket will be sent to your email within a few hours after payment verification. Please check your inbox and spam folder.</p>
                 </div>
               </div>
             </div>
@@ -508,12 +509,39 @@ export default function LotteryPage() {
               For queries, contact: <strong style={{ color: theme.primary }}>+91 7875947907</strong>
             </div>
 
+            <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)', borderColor: theme.border }}>
+              <p className="font-bold text-lg mb-2" style={{ color: theme.text }}>
+                💳 Payment Instructions
+              </p>
+              <p className="text-base mb-3" style={{ color: theme.text, opacity: 0.9 }}>
+                Please pay <strong style={{ color: theme.primary, fontSize: '1.25rem' }}>₹{totalAmount}</strong> to the UPI ID above, scan the QR code, or send to <strong>9175933634</strong>
+              </p>
+              
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasPaid}
+                  onChange={(e) => setHasPaid(e.target.checked)}
+                  className="mt-1 w-5 h-5 cursor-pointer"
+                  style={{ accentColor: theme.primary }}
+                />
+                <span className="text-base font-semibold" style={{ color: theme.text }}>
+                  I have completed the payment
+                </span>
+              </label>
+            </div>
+
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !hasPaid}
               size="lg"
               className="w-full font-semibold"
-              style={{ backgroundColor: theme.primary, color: theme.background }}
+              style={{ 
+                backgroundColor: hasPaid ? theme.primary : '#9ca3af', 
+                color: theme.background,
+                opacity: hasPaid ? 1 : 0.6,
+                cursor: hasPaid ? 'pointer' : 'not-allowed'
+              }}
             >
               {isSubmitting ? 'Submitting...' : 'Confirm Purchase'}
             </Button>
