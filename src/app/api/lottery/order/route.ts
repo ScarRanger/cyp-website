@@ -90,7 +90,20 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (orderError) throw orderError;
+    if (orderError) {
+      // Release the soft-lock on order creation failure
+      await supabase
+        .from('lottery_tickets')
+        .update({
+          status: 'available',
+          session_id: null,
+          locked_at: null,
+        })
+        .eq('ticket_number', ticketNumber)
+        .eq('session_id', sessionId);
+      
+      throw orderError;
+    }
 
     const orderId = newOrder.id;
 

@@ -301,12 +301,15 @@ export default function LotteryPage() {
 
     try {
       // Submit orders for all selected tickets
-      // Make transaction ID unique per ticket by appending ticket number
-      const promises = selectedTickets.map(ticketNumber => {
+      // Generate unique transaction ID per ticket using timestamp + random string
+      const baseTransactionId = formData.transactionId;
+      const timestamp = Date.now();
+      
+      const promises = selectedTickets.map((ticketNumber, index) => {
         const orderData = {
           ...formData,
-          // Append ticket number to transaction ID to make it unique
-          transactionId: `${formData.transactionId}-T${ticketNumber}`,
+          // Create truly unique transaction ID: base-timestamp-ticketNum-random
+          transactionId: `${baseTransactionId}-${timestamp}-T${ticketNumber}-${Math.random().toString(36).substr(2, 6)}`,
           ticketNumber,
           amount: LOTTERY_PRICE,
           sessionId,
@@ -316,34 +319,66 @@ export default function LotteryPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderData),
-        });
+        }).then(response => ({ response, ticketNumber }));
       });
 
-      const responses = await Promise.all(promises);
+      const results = await Promise.all(promises);
       
-      // Check for errors
-      const failed = [];
-      for (let i = 0; i < responses.length; i++) {
-        if (!responses[i].ok) {
-          const errorData = await responses[i].json();
-          failed.push({ ticket: selectedTickets[i], error: errorData.error });
+      // Check for errors and collect details
+      const failed: Array<{ ticket: number; error: string }> = [];
+      const succeeded: number[] = [];
+      
+      for (const { response, ticketNumber } of results) {
+        if (!response.ok) {
+          const errorData = await response.json();
+          failed.push({ ticket: ticketNumber, error: errorData.error });
+          
+          // Release the soft-lock for failed tickets
+          try {
+            await fetch('/api/lottery/release-lock', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ticketNumber, sessionId }),
+            });
+          } catch (releaseError) {
+            console.error(`Failed to release lock for ticket ${ticketNumber}:`, releaseError);
+          }
+        } else {
+          succeeded.push(ticketNumber);
         }
       }
 
       if (failed.length === 0) {
+        // All tickets succeeded
         setSubmitMessage('Order placed successfully! Check your email for confirmation. 🎉');
+        setSelectedTickets([]);
         setFormData({ name: '', phone: '', email: '', parish: '', transactionId: '' });
         setTimeout(() => {
           router.push('/lottery');
           window.location.reload();
         }, 3000);
+      } else if (succeeded.length === 0) {
+        // All tickets failed
+        const errorMessages = failed.map(f => `Ticket #${f.ticket}: ${f.error}`).join('; ');
+        setSubmitMessage(`All tickets failed: ${errorMessages}. Please try again or contact support.`);
+        // Remove all failed tickets from selection since locks were released
+        setSelectedTickets([]);
       } else {
+        // Partial success/failure
+        const failedTicketNumbers = failed.map(f => f.ticket).join(', ');
+        const succeededTicketNumbers = succeeded.join(', ');
+        setSubmitMessage(
+          `Partial success: Tickets ${succeededTicketNumbers} succeeded. ` +
+          `Tickets ${failedTicketNumbers} failed. ` +
+          `The failed tickets have been released. Please select them again and retry with a NEW transaction ID.`
+        );
+        // Remove succeeded tickets from selection
+        setSelectedTickets(prev => prev.filter(t => !succeeded.includes(t)));
         console.error('Failed orders:', failed);
-        setSubmitMessage(`${responses.length - failed.length} ticket(s) successful, ${failed.length} failed. Please contact support.`);
       }
     } catch (error) {
       console.error('Error submitting order:', error);
-      setSubmitMessage('Failed to submit order. Please check your connection.');
+      setSubmitMessage('Failed to submit order. Please check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -495,16 +530,29 @@ export default function LotteryPage() {
                   className="w-full px-4 py-2 rounded-md border"
                   style={{ backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }}
                 />
+                {selectedTickets.length > 1 && (
+                  <div className="mt-2 text-xs p-2 rounded" style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)', color: theme.text }}>
+                    💡 <strong>Tip:</strong> For multiple tickets, use ONE UPI transaction for the total amount (₹{selectedTickets.length * LOTTERY_PRICE}). 
+                    We'll automatically create unique references for each ticket.
+                  </div>
+                )}
               </div>
             </div>
 
             {submitMessage && (
               <div className={`p-3 rounded-lg text-sm font-medium ${
-                submitMessage.includes('successfully') 
+                submitMessage.includes('successfully') || submitMessage.includes('succeeded')
                   ? 'bg-green-500/20 border border-green-500/30' 
+                  : submitMessage.includes('Partial success')
+                  ? 'bg-yellow-500/20 border border-yellow-500/30'
                   : 'bg-red-500/20 border border-red-500/30'
               }`} style={{ 
-                color: submitMessage.includes('successfully') ? '#22c55e' : '#ef4444'
+                color: submitMessage.includes('successfully') || submitMessage.includes('succeeded')
+                  ? '#22c55e' 
+                  : submitMessage.includes('Partial success')
+                  ? '#eab308'
+                  : '#ef4444',
+                whiteSpace: 'pre-wrap'
               }}>
                 {submitMessage}
               </div>
