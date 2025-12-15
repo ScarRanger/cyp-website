@@ -121,7 +121,13 @@ export default function AdminLotteryPage() {
     <AuthGuard>
       <div className="min-h-screen p-4" style={{ backgroundColor: theme.background }}>
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6" style={{ color: theme.text }}>Lottery Orders Management</h1>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-bold" style={{ color: theme.text }}>Lottery Orders Management</h1>
+            <div className="text-right">
+              <div className="text-sm" style={{ color: theme.text, opacity: 0.7 }}>Confirmed</div>
+              <div className="text-2xl font-bold" style={{ color: theme.primary }}>{orders.filter(o => o.status === 'confirmed').length}</div>
+            </div>
+          </div>
 
         <div className="mb-4 flex gap-2">
           <Button onClick={fetchOrders} style={{ backgroundColor: theme.primary, color: theme.background }}>

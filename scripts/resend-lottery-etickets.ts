@@ -11,7 +11,7 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Use fallback API key (API 2) to avoid quota issues
-const resend = new Resend(process.env.RESEND_API_KEY2 || process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY2);
 
 interface LotteryOrder {
   id: string;
@@ -53,7 +53,7 @@ async function resendETickets() {
   //   .lte('ticket_number', endTicket);
 
   // OPTION 3: Send to specific ticket numbers
-  const ticketNumbers = [858, 988];
+  const ticketNumbers = [983,896,890,877,861];
   let queryBuilder = supabase
     .from('lottery_orders')
     .select('*')

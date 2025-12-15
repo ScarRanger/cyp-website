@@ -3,8 +3,8 @@ import { createServerSupabaseClient } from '@/app/lib/supabase';
 import { Resend } from 'resend';
 import { google } from 'googleapis';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const resendFallback = process.env.RESEND_API_KEY2 ? new Resend(process.env.RESEND_API_KEY2) : null;
+const resend = new Resend(process.env.RESEND_API_KEY2);
+const resendFallback = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const LOTTERY_SHEET_ID = '1ODlIMild9QS0wHSQny3BV1dQVqCrxEMqxGwdP9d8iFY';
 const SHEET_NAME = 'Lottery';
@@ -159,48 +159,68 @@ export async function POST(request: NextRequest) {
     try {
       // Try primary, fallback to secondary if it fails
       let emailSent = false;
-      try {
-        const result = await resend.emails.send({
-          from: 'CYP Lottery <lottery@fundraiser.cypvasai.org>',
-          to: [order.email],
-          subject: `🎟️ Your CYP Lottery E-Ticket - Ticket #${order.ticket_number}`,
-          html: eTicketHtml,
-        });
-        
-        // Check if result indicates an error (Resend returns error in data)
-        if (result.error) {
-          throw new Error(result.error.message || 'Resend primary API error');
-        }
-        emailSent = true;
-        console.log('[E-Ticket Email] Primary Resend success');
-      } catch (primaryError: any) {
-        console.error('[E-Ticket Email] Primary Resend failed:', primaryError?.message || primaryError);
-        
-        // Try fallback
-        if (resendFallback) {
+      let emailError = null;
+      
+      // Retry function with delay
+      const sendWithRetry = async (resendClient: any, fromAddress: string, maxRetries = 2) => {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
-            const fallbackResult = await resendFallback.emails.send({
-              from: 'CYP Lottery <lottery@fundraisers.cypvasai.org>',
+            const result = await resendClient.emails.send({
+              from: fromAddress,
               to: [order.email],
               subject: `🎟️ Your CYP Lottery E-Ticket - Ticket #${order.ticket_number}`,
               html: eTicketHtml,
             });
             
-            if (fallbackResult.error) {
-              throw new Error(fallbackResult.error.message || 'Resend fallback API error');
+            if (result.error) {
+              throw new Error(result.error.message || 'Resend API error');
             }
+            return { success: true, result };
+          } catch (error: any) {
+            if (attempt < maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Wait 1s, 2s
+            } else {
+              throw error;
+            }
+          }
+        }
+      };
+      
+      try {
+        await sendWithRetry(resend, 'CYP Lottery <lottery@fundraisers.cypvasai.org>');
+        emailSent = true;
+        console.log('[E-Ticket Email] Primary Resend success');
+      } catch (primaryError: any) {
+        console.error('[E-Ticket Email] Primary Resend failed after retries:', primaryError?.message || primaryError);
+        emailError = primaryError?.message || String(primaryError);
+        
+        // Try fallback
+        if (resendFallback) {
+          try {
+            await sendWithRetry(resendFallback, 'CYP Lottery <lottery@fundraiser.cypvasai.org>');
             emailSent = true;
             console.log('[E-Ticket Email] Fallback Resend success');
+            emailError = null;
           } catch (fallbackError: any) {
-            console.error('[E-Ticket Email] Fallback Resend also failed:', fallbackError?.message || fallbackError);
+            console.error('[E-Ticket Email] Fallback Resend also failed after retries:', fallbackError?.message || fallbackError);
+            emailError = `Primary: ${primaryError?.message || primaryError} | Fallback: ${fallbackError?.message || fallbackError}`;
           }
         } else {
           console.error('[E-Ticket Email] No fallback API key configured');
         }
       }
       
+      // Log failed email to database for manual retry
       if (!emailSent) {
-        console.error('[E-Ticket Email] All email attempts failed for order:', orderId);
+        console.error('[E-Ticket Email] ⚠️ CRITICAL: All email attempts failed for order:', orderId);
+        try {
+          await supabase.from('lottery_orders').update({
+            eticket_email_failed: true,
+            eticket_email_error: emailError?.substring(0, 500),
+          }).eq('id', orderId);
+        } catch (dbError) {
+          console.error('[E-Ticket Email] Failed to log email failure to database:', dbError);
+        }
       }
     } catch (err) {
       console.error('Error sending e-ticket email (both attempts):', err);

@@ -15,9 +15,10 @@ export async function GET(request: NextRequest) {
     const now = Date.now();
     const supabase = createServerSupabaseClient();
 
-    // Use cache if it's fresh
+    // ALWAYS fetch fresh data when sessionId is provided (for verification)
+    // Use cache only for general ticket listing
     let tickets;
-    if (ticketCache && (now - cacheTimestamp) < CACHE_DURATION) {
+    if (!sessionId && ticketCache && (now - cacheTimestamp) < CACHE_DURATION) {
       tickets = ticketCache;
     } else {
       const { data, error } = await supabase
@@ -28,8 +29,12 @@ export async function GET(request: NextRequest) {
       if (error) throw error;
 
       tickets = data;
-      ticketCache = tickets;
-      cacheTimestamp = now;
+      
+      // Only cache if no sessionId (general listing)
+      if (!sessionId) {
+        ticketCache = tickets;
+        cacheTimestamp = now;
+      }
     }
 
     const available: number[] = [];
