@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+  import { NextResponse } from 'next/server';
 import { getDb } from '@/app/lib/firebase-admin';
 import type { EventItem } from '@/app/types/event';
 

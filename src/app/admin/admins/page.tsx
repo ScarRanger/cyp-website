@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import AuthGuard from '@/app/components/Auth/AuthGuard';
-import { collection, addDoc, query, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, setDoc, getDocs, deleteDoc, doc, query } from 'firebase/firestore';
 import { db } from '@/app/lib/firebase';
 import Spinner from '@/app/components/Spinner';
 
@@ -38,6 +38,7 @@ export default function AdminsManagementPage() {
     loadAdmins();
   }, []);
 
+  // Refactored to key admins by email for Security Rules compatibility
   const handleAdd = async () => {
     const email = newEmail.trim().toLowerCase();
     if (!email) return alert('Enter an email');
@@ -46,8 +47,9 @@ export default function AdminsManagementPage() {
 
     setSaving(true);
     try {
-      const ref = await addDoc(collection(db, ADMIN_COLLECTION), { email });
-      setAdmins(prev => [...prev, { id: ref.id, email }]);
+      // Use email as Document ID
+      await setDoc(doc(db, ADMIN_COLLECTION, email), { email });
+      setAdmins(prev => [...prev, { id: email, email }]);
       setNewEmail('');
     } catch (err) {
       console.error('Error adding admin:', err);

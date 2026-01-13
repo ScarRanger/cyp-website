@@ -342,46 +342,28 @@ export default function HomePage() {
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        const eventsRef = collection(db, 'events');
-        const q = query(eventsRef, orderBy('date', 'desc'), limit(6));
-        const snap = await getDocs(q);
-        const list: Event[] = [];
-        snap.forEach((d) => {
-          const data = d.data();
+        const res = await fetch('/api/events?limit=6');
+        if (!res.ok) throw new Error('Failed to load events');
+        const data = await res.json();
 
-          // Properly handle Firestore Timestamp conversion
-          let eventDate: Date;
-          if (data.date?.toDate) {
-            // Firestore Timestamp object
-            eventDate = data.date.toDate();
-          } else if (data.date instanceof Date) {
-            // Already a Date object
-            eventDate = data.date;
-          } else if (typeof data.date === 'string') {
-            // ISO string or date string
-            eventDate = new Date(data.date);
-          } else if (typeof data.date === 'number') {
-            // Unix timestamp
-            eventDate = new Date(data.date);
-          } else {
-            // Fallback to current date
-            eventDate = new Date();
-          }
+        // Transform the API response to match the component's internal Event type
+        const list: Event[] = (data.items || []).map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          slug: item.slug,
+          date: new Date(item.date),
+          location: item.location,
+          shortDescription: item.shortDescription,
+          thumbnailUrl: item.headerImageUrl, // The API returns headerImageUrl, mapping it to thumbnailUrl for internal use
+          galleryCategory: item.galleryCategory,
+        }));
 
-          list.push({
-            id: d.id,
-            title: String(data.title ?? ''),
-            slug: String(data.slug ?? ''),
-            date: eventDate,
-            location: data.location,
-            shortDescription: data.shortDescription,
-            thumbnailUrl: data.thumbnailUrl,
-            galleryCategory: data.galleryCategory,
-          });
-        });
         setEvents(list);
-      } catch (e) { console.error(e); }
-      finally { setLoadingEvents(false); }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingEvents(false);
+      }
     };
     loadEvents();
   }, []);
@@ -426,7 +408,7 @@ export default function HomePage() {
   return (
     <main className="overflow-x-hidden relative" style={{ backgroundColor: theme.background }}>
       {/* Paper Texture Overlay */}
-      <div 
+      <div
         className="fixed inset-0 pointer-events-none opacity-[0.03] z-0"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
