@@ -1,7 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+// Singleton instances for connection reuse in serverless
+let serverClient: SupabaseClient | null = null;
+let clientClient: SupabaseClient | null = null;
 
 // Initialize Supabase client for server-side use
+// Note: The JS client uses Supabase REST API which is already connection-pooled
 export function createServerSupabaseClient() {
+  if (serverClient) return serverClient;
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
@@ -9,16 +16,28 @@ export function createServerSupabaseClient() {
     throw new Error('Missing Supabase environment variables');
   }
 
-  return createClient(supabaseUrl, supabaseServiceKey, {
+  serverClient = createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
+    },
+    db: {
+      schema: 'public'
+    },
+    global: {
+      headers: {
+        'x-connection-encrypted': 'true'
+      }
     }
   });
+
+  return serverClient;
 }
 
 // Initialize Supabase client for client-side use
 export function createClientSupabaseClient() {
+  if (clientClient) return clientClient;
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
@@ -26,7 +45,14 @@ export function createClientSupabaseClient() {
     throw new Error('Missing Supabase environment variables');
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey);
+  clientClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true
+    }
+  });
+
+  return clientClient;
 }
 
 // Types for lottery tables
