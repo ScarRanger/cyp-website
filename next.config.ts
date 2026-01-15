@@ -19,7 +19,7 @@ if (endpoint) {
         },
       ],
     };
-  } catch {}
+  } catch { }
 }
 
 // Also allow S3/CloudFront domain if provided
@@ -36,7 +36,7 @@ if (s3PublicBase) {
     } else if (images.remotePatterns) {
       images.remotePatterns.push(s3Pattern as any);
     }
-  } catch {}
+  } catch { }
 }
 
 // Also allow talksPublicBase domain if provided
@@ -53,7 +53,7 @@ if (talksPublicBase) {
     } else if (images.remotePatterns) {
       images.remotePatterns.push(talksPattern as any);
     }
-  } catch {}
+  } catch { }
 }
 
 // If no public base URL is set, our upload route defaults to https://<bucket>.s3.amazonaws.com
@@ -106,7 +106,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()'
+            value: 'camera=(self), microphone=(), geolocation=()'
           },
           {
             key: 'X-XSS-Protection',

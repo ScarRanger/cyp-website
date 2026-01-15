@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Html5QrcodeScanner, Html5QrcodeScanType } from "html5-qrcode";
+// CHANGED: We import Html5Qrcode (Core) instead of Scanner to support your custom UI
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 
 const theme = {
     background: '#0f0f1a',
@@ -18,7 +19,6 @@ const theme = {
     warning: '#f59e0b',
 };
 
-// Basic auth credentials - change these or move to env vars for production
 const VALID_CREDENTIALS = {
     username: 'cyp_admin',
     password: 'concert2026',
@@ -54,7 +54,9 @@ export default function ConcertScanPage() {
     const [scanResult, setScanResult] = useState<ScanResult | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [scanCount, setScanCount] = useState(0);
-    const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+
+    // Ref to hold the scanner instance
+    const scannerRef = useRef<Html5Qrcode | null>(null);
 
     // Check for saved session
     useEffect(() => {
@@ -64,13 +66,127 @@ export default function ConcertScanPage() {
         }
     }, []);
 
+    // Cleanup on unmount
     useEffect(() => {
         return () => {
             if (scannerRef.current) {
-                scannerRef.current.clear().catch(console.error);
+                if (scannerRef.current.isScanning) {
+                    scannerRef.current.stop().catch(console.error);
+                }
+                scannerRef.current.clear();
             }
         };
     }, []);
+
+    // --- LOGIC FIX: Handle Scanner Lifecycle ---
+    // --- LOGIC FIX: Handle Scanner Lifecycle ---
+    useEffect(() => {
+        // Only run this if we are supposed to be scanning and the scanner isn't already running
+        if (isScanning && !scannerRef.current) {
+            const startCamera = async () => {
+                try {
+                    // Step 1: Explicitly request camera permission first
+                    // This ensures the browser shows the permission prompt
+                    console.log("Requesting camera permission...");
+                    let stream: MediaStream | null = null;
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: "environment" }
+                        });
+                        console.log("Camera permission granted!");
+                    } catch (permErr: any) {
+                        console.error("Permission request failed:", permErr);
+                        // Try without facingMode constraint
+                        try {
+                            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                            console.log("Camera permission granted (any camera)!");
+                        } catch (permErr2: any) {
+                            console.error("All permission requests failed:", permErr2);
+                            throw permErr2;
+                        }
+                    }
+
+                    // Step 2: Stop the test stream - we just needed it for permission
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                    }
+
+                    // Step 3: Now start the QR scanner (permission is already granted)
+                    const html5QrCode = new Html5Qrcode(
+                        "qr-reader",
+                        {
+                            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+                            verbose: false
+                        }
+                    );
+
+                    scannerRef.current = html5QrCode;
+
+                    const scanConfig = {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
+                        aspectRatio: 1.0,
+                    };
+
+                    const onSuccess = (decodedText: string) => {
+                        onScanSuccess(decodedText);
+                    };
+
+                    const onError = () => {
+                        // Ignore scan errors while seeking code
+                    };
+
+                    // Try back camera first, then fallback to any camera
+                    try {
+                        await html5QrCode.start(
+                            { facingMode: "environment" },
+                            scanConfig,
+                            onSuccess,
+                            onError
+                        );
+                        console.log("QR Scanner started successfully!");
+                    } catch (backCameraErr) {
+                        console.warn("Back camera failed, trying any camera:", backCameraErr);
+                        // Fallback: try to get any available camera
+                        const cameras = await Html5Qrcode.getCameras();
+                        console.log("Available cameras:", cameras);
+                        if (cameras && cameras.length > 0) {
+                            await html5QrCode.start(
+                                cameras[0].id,
+                                scanConfig,
+                                onSuccess,
+                                onError
+                            );
+                            console.log("QR Scanner started with fallback camera!");
+                        } else {
+                            throw new Error("No cameras found on device");
+                        }
+                    }
+                } catch (err: any) {
+                    console.error("Error starting scanner:", err);
+                    // Clean up the scanner ref if it was created
+                    if (scannerRef.current) {
+                        try {
+                            scannerRef.current.clear();
+                        } catch (e) { }
+                        scannerRef.current = null;
+                    }
+                    setIsScanning(false);
+                    setScanResult({
+                        valid: false,
+                        error: getCameraErrorMessage(err),
+                    });
+                }
+            };
+
+            const timer = setTimeout(() => {
+                startCamera();
+            }, 100);
+
+            return () => clearTimeout(timer);
+        }
+    }, [isScanning]);
+
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -93,38 +209,61 @@ export default function ConcertScanPage() {
 
     const startScanner = () => {
         setScanResult(null);
+        // We simply set this to true. The useEffect above will detect this change,
+        // wait for the render, and then start the camera.
         setIsScanning(true);
-
-        setTimeout(() => {
-            const scanner = new Html5QrcodeScanner(
-                "qr-reader",
-                {
-                    fps: 10,
-                    qrbox: { width: 250, height: 250 },
-                    supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-                    rememberLastUsedCamera: true,
-                },
-                false
-            );
-
-            scanner.render(onScanSuccess, onScanError);
-            scannerRef.current = scanner;
-        }, 100);
     };
 
-    const stopScanner = () => {
+    const getCameraErrorMessage = (err: any): string => {
+        const errorName = err?.name || 'UnknownError';
+        const errorMsg = err?.message || '';
+
+        // Check if running on HTTP (not HTTPS) - camera requires secure context
+        if (typeof window !== 'undefined' && window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
+            return 'Camera requires HTTPS. Please use a secure connection.';
+        }
+
+        if (errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError') {
+            return 'Camera access denied. Please enable camera permissions in your browser settings and refresh the page.';
+        }
+        if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+            return 'No camera found on this device.';
+        }
+        if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+            return 'Camera is in use by another app. Please close other apps using the camera.';
+        }
+        if (errorName === 'OverconstrainedError') {
+            return 'Camera requirements not met. Trying alternative...';
+        }
+        if (errorMsg.includes('No cameras found')) {
+            return 'No cameras found on this device.';
+        }
+
+        // For debugging: show actual error
+        return `Camera error: ${errorName} - ${errorMsg || 'Please refresh and try again.'}`;
+    };
+
+    const stopScanner = async () => {
         if (scannerRef.current) {
-            scannerRef.current.clear().catch(console.error);
+            try {
+                if (scannerRef.current.isScanning) {
+                    await scannerRef.current.stop();
+                }
+                scannerRef.current.clear();
+            } catch (error) {
+                console.error("Failed to stop scanner", error);
+            }
             scannerRef.current = null;
         }
         setIsScanning(false);
     };
 
     const onScanSuccess = async (decodedText: string) => {
+        // Stop scanning immediately upon success to prevent duplicate calls
+        await stopScanner();
+
         if (isProcessing) return;
         setIsProcessing(true);
-
-        stopScanner();
 
         try {
             const response = await fetch('/api/concert/verify', {
@@ -146,8 +285,6 @@ export default function ConcertScanPage() {
             setIsProcessing(false);
         }
     };
-
-    const onScanError = () => { };
 
     const handleConfirmScan = async () => {
         if (!scanResult?.ticket?.id) return;
@@ -339,13 +476,17 @@ export default function ConcertScanPage() {
                     </div>
                 )}
 
+                {/* CAMERA CONTAINER */}
                 {isScanning && (
                     <div>
-                        <div
-                            id="qr-reader"
-                            className="rounded-2xl overflow-hidden mb-4"
-                            style={{ backgroundColor: theme.surface }}
-                        />
+                        <div className="relative rounded-2xl overflow-hidden mb-4 border border-gray-700 bg-black">
+                            {/* This ID matches the ID used in new Html5Qrcode("qr-reader") */}
+                            <div
+                                id="qr-reader"
+                                className="w-full h-full"
+                                style={{ minHeight: '300px' }}
+                            />
+                        </div>
                         <button
                             onClick={stopScanner}
                             className="w-full py-3 rounded-xl font-medium"
@@ -489,46 +630,20 @@ export default function ConcertScanPage() {
                 )}
 
                 {/* Instructions */}
-                <div className="mt-8 text-center">
-                    <p className="text-sm" style={{ color: theme.textMuted }}>
-                        Point camera at ticket QR code
-                    </p>
-                </div>
+                {!scanResult && (
+                    <div className="mt-8 text-center">
+                        <p className="text-sm" style={{ color: theme.textMuted }}>
+                            Point camera at ticket QR code
+                        </p>
+                    </div>
+                )}
             </div>
 
-            {/* Custom styles for html5-qrcode */}
+            {/* Custom styles - Simplified because we are not using the Scanner UI anymore */}
             <style jsx global>{`
-                #qr-reader {
-                    border: none !important;
-                }
-                #qr-reader__scan_region {
-                    background: ${theme.surface} !important;
-                }
-                #qr-reader__dashboard {
-                    background: ${theme.surface} !important;
-                    padding: 10px !important;
-                }
-                #qr-reader__dashboard_section {
-                    background: ${theme.surface} !important;
-                }
-                #qr-reader__dashboard_section_csr button {
-                    background: ${theme.primary} !important;
-                    border: none !important;
-                    color: white !important;
-                    padding: 10px 20px !important;
-                    border-radius: 8px !important;
-                    cursor: pointer !important;
-                }
-                #qr-reader__dashboard_section_swaplink {
-                    color: ${theme.primary} !important;
-                    text-decoration: none !important;
-                }
-                #qr-reader__status_span {
-                    color: ${theme.textMuted} !important;
-                    background: transparent !important;
-                }
                 #qr-reader video {
-                    border-radius: 12px !important;
+                    object-fit: cover;
+                    border-radius: 12px;
                 }
             `}</style>
         </div>
