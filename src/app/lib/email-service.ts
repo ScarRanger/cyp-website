@@ -1,36 +1,61 @@
+import { sendEmailWithAttachmentsViaSES } from './ses';
 import type { QRPayload } from '@/app/types/concert';
 
 const POSTMARK_API_KEY = process.env.POSTMARK_API_KEY;
 const POSTMARK_FROM_EMAIL = process.env.POSTMARK_FROM_EMAIL || 'tickets@cypvasai.org';
 const POSTMARK_API_URL = 'https://api.postmarkapp.com/email';
 
-interface PostmarkAttachment {
+// Email provider selection: 'postmark' | 'ses'
+const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || 'postmark';
+
+export interface EmailAttachment {
   Name: string;
-  Content: string;
+  Content: string; // base64 encoded
   ContentType: string;
 }
 
-interface PostmarkEmailOptions {
+export interface EmailOptions {
   to: string;
   subject: string;
   htmlBody: string;
   textBody?: string;
   tag?: string;
-  attachments?: PostmarkAttachment[];
+  attachments?: EmailAttachment[];
 }
 
-interface PostmarkResponse {
-  To: string;
-  SubmittedAt: string;
-  MessageID: string;
-  ErrorCode: number;
-  Message: string;
+interface EmailResponse {
+  success: boolean;
+  messageId?: string;
+  provider: string;
 }
 
 /**
- * Send an email via Postmark API
+ * Send an email using the configured provider (Postmark or SES)
  */
-export async function sendEmail(options: PostmarkEmailOptions): Promise<PostmarkResponse> {
+export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
+  if (EMAIL_PROVIDER === 'ses') {
+    const result = await sendEmailWithAttachmentsViaSES({
+      to: options.to,
+      subject: options.subject,
+      htmlBody: options.htmlBody,
+      textBody: options.textBody,
+      attachments: options.attachments,
+    });
+    return {
+      success: result.success,
+      messageId: result.messageId,
+      provider: 'ses',
+    };
+  }
+
+  // Default: Postmark
+  return sendEmailViaPostmark(options);
+}
+
+/**
+ * Send email via Postmark API
+ */
+async function sendEmailViaPostmark(options: EmailOptions): Promise<EmailResponse> {
   if (!POSTMARK_API_KEY) {
     throw new Error('POSTMARK_API_KEY is not configured');
   }
@@ -59,11 +84,16 @@ export async function sendEmail(options: PostmarkEmailOptions): Promise<Postmark
     throw new Error(`Postmark error: ${errorData.Message || response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return {
+    success: true,
+    messageId: data.MessageID,
+    provider: 'postmark',
+  };
 }
 
 /**
- * Generate QR code as base64 data URL using Google Charts API
+ * Generate QR code URL
  */
 export function generateQRCodeUrl(data: string, size: number = 200): string {
   const encodedData = encodeURIComponent(data);
@@ -71,50 +101,65 @@ export function generateQRCodeUrl(data: string, size: number = 200): string {
 }
 
 /**
- * Send concert ticket email with QR code
+ * Ticket info for email generation
+ */
+export interface TicketInfo {
+  ticketId: string;
+  tier: string;
+  qrPayload: QRPayload;
+  fileName: string;
+  pdfBase64: string;
+}
+
+/**
+ * Send concert ticket email with multiple tickets (consolidated)
  */
 export async function sendTicketEmail(
   buyerEmail: string,
   buyerName: string,
-  tier: string,
-  ticketId: string,
-  qrPayload: QRPayload,
   purchaseDate: string,
-  pdfBase64: string,
-  fileName: string
-): Promise<PostmarkResponse> {
-  const qrDataString = JSON.stringify(qrPayload);
-  const qrCodeUrl = generateQRCodeUrl(qrDataString, 250);
+  tickets: TicketInfo[]
+): Promise<EmailResponse> {
+  // Generate HTML for multiple tickets
+  const ticketCount = tickets.length;
+  const tier = tickets[0]?.tier || 'Standard';
 
   const htmlBody = generateTicketEmailHtml({
     buyerName,
     tier,
-    ticketId,
-    qrCodeUrl,
+    ticketCount,
+    ticketIds: tickets.map(t => t.ticketId),
     purchaseDate,
     eventDate: 'Saturday, 21st March 2026',
     eventTime: '6:00 PM Onwards',
     venue: 'GG College, Vasai',
   });
 
+  // Collect all PDF attachments
+  const attachments: EmailAttachment[] = tickets.map(ticket => ({
+    Name: ticket.fileName,
+    Content: ticket.pdfBase64,
+    ContentType: 'application/pdf',
+  }));
+
+  const subject = ticketCount === 1
+    ? `🎟️ Your CYP Concert Ticket - ${tier}`
+    : `🎟️ Your ${ticketCount} CYP Concert Tickets - ${tier}`;
+
   return sendEmail({
     to: buyerEmail,
-    subject: `🎟️ Your CYP Concert Ticket - ${tier}`,
+    subject,
     htmlBody,
     tag: 'concert-ticket',
-    attachments: [{
-      Name: fileName,
-      Content: pdfBase64,
-      ContentType: 'application/pdf',
-    }],
+    attachments,
   });
 }
 
 interface TicketEmailData {
   buyerName: string;
   tier: string;
-  ticketId: string;
-  qrCodeUrl: string;
+  ticketCount: number;
+  ticketIds: string[];
   purchaseDate: string;
   eventDate: string;
   eventTime: string;
@@ -122,13 +167,22 @@ interface TicketEmailData {
 }
 
 function generateTicketEmailHtml(data: TicketEmailData): string {
+  const ticketIdsHtml = data.ticketIds
+    .map((id, i) => `<code style="color: #e94560; display: block; margin: 2px 0;">Ticket ${i + 1}: ${id.substring(0, 8)}...</code>`)
+    .join('');
+
+  const ticketLabel = data.ticketCount === 1 ? 'ticket' : 'tickets';
+  const attachmentNote = data.ticketCount === 1
+    ? 'Your ticket PDF is attached to this email.'
+    : `All ${data.ticketCount} ticket PDFs are attached to this email.`;
+
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Your Concert Ticket</title>
+  <title>Your Concert Ticket${data.ticketCount > 1 ? 's' : ''}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f0f1a;">
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0f0f1a;">
@@ -157,7 +211,7 @@ function generateTicketEmailHtml(data: TicketEmailData): string {
                 Dear <strong>${data.buyerName}</strong>,
               </p>
               <p style="color: #a0a0b0; margin: 0 0 30px 0;">
-                Thank you for your purchase! Here's your e-ticket for the CYP Concert 2026.
+                Thank you for your purchase! Here ${data.ticketCount === 1 ? 'is your e-ticket' : `are your ${data.ticketCount} e-tickets`} for the CYP Concert 2026.
               </p>
               
               <!-- Ticket Card -->
@@ -168,18 +222,13 @@ function generateTicketEmailHtml(data: TicketEmailData): string {
                     <!-- Tier Badge -->
                     <div style="text-align: center; margin-bottom: 20px;">
                       <span style="display: inline-block; background: linear-gradient(135deg, #e94560 0%, #533483 100%); color: #ffffff; padding: 8px 24px; border-radius: 20px; font-weight: bold; font-size: 18px;">
-                        ${data.tier} TICKET
+                        ${data.ticketCount}x ${data.tier} TICKET${data.ticketCount > 1 ? 'S' : ''}
                       </span>
                     </div>
                     
-                    <!-- QR Code -->
-                    <div style="text-align: center; margin: 20px 0; padding: 20px; background-color: #ffffff; border-radius: 12px;">
-                      <img src="${data.qrCodeUrl}" alt="Ticket QR Code" style="width: 200px; height: 200px; display: block; margin: 0 auto;" />
-                    </div>
-                    
-                    <!-- Ticket ID -->
+                    <!-- Ticket IDs -->
                     <p style="text-align: center; color: #a0a0b0; font-size: 12px; margin: 10px 0 20px 0;">
-                      Ticket ID: <code style="color: #e94560;">${data.ticketId}</code>
+                      ${ticketIdsHtml}
                     </p>
                     
                     <!-- Event Details -->
@@ -220,13 +269,20 @@ function generateTicketEmailHtml(data: TicketEmailData): string {
                 </tr>
               </table>
               
+              <!-- Attachment Note -->
+              <div style="margin-top: 20px; padding: 15px; background-color: rgba(83, 52, 131, 0.2); border-radius: 8px; border-left: 4px solid #533483;">
+                <p style="color: #a0a0b0; margin: 0; font-size: 14px;">
+                  📎 <strong style="color: #ffffff;">${attachmentNote}</strong>
+                </p>
+              </div>
+              
               <!-- Instructions -->
-              <div style="margin-top: 30px; padding: 20px; background-color: rgba(245, 197, 24, 0.1); border-radius: 12px; border-left: 4px solid #f5c518;">
-                <p style="color: #f5c518; margin: 0 0 10px 0; font-weight: bold;">📱 How to Use Your Ticket</p>
+              <div style="margin-top: 20px; padding: 20px; background-color: rgba(245, 197, 24, 0.1); border-radius: 12px; border-left: 4px solid #f5c518;">
+                <p style="color: #f5c518; margin: 0 0 10px 0; font-weight: bold;">📱 How to Use Your ${ticketLabel}</p>
                 <ol style="color: #a0a0b0; margin: 0; padding-left: 20px; line-height: 1.8;">
-                  <li>Save this email or take a screenshot of the QR code</li>
-                  <li>Show the QR code at the entrance on the event day</li>
-                  <li>Our team will scan and verify your ticket</li>
+                  <li>Open the attached PDF ${ticketLabel}</li>
+                  <li>Show the QR code${data.ticketCount > 1 ? 's' : ''} at the entrance on the event day</li>
+                  <li>Our team will scan and verify your ${ticketLabel}</li>
                 </ol>
               </div>
               

@@ -25,12 +25,7 @@ interface SelectedTier {
     price: number;
 }
 
-interface PdfTicket {
-    ticketId: string;
-    tier: string;
-    fileName: string;
-    data: string;
-}
+
 
 export default function TicketingPage() {
     const [tiers, setTiers] = useState<TierAvailability[]>([]);
@@ -45,7 +40,6 @@ export default function TicketingPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitMessage, setSubmitMessage] = useState('');
     const [submitSuccess, setSubmitSuccess] = useState(false);
-    const [purchasedTickets, setPurchasedTickets] = useState<PdfTicket[]>([]);
 
     // Fetch tiers
     const fetchTiers = useCallback(async () => {
@@ -99,7 +93,6 @@ export default function TicketingPage() {
 
         try {
             const results = [];
-            const allPdfTickets: PdfTicket[] = [];
 
             for (const selected of selectedTiers) {
                 const response = await fetch('/api/concert/order', {
@@ -114,16 +107,11 @@ export default function TicketingPage() {
 
                 const data = await response.json();
                 results.push({ tier: selected.tier, success: response.ok, data });
-
-                if (response.ok && data.pdfTickets) {
-                    allPdfTickets.push(...data.pdfTickets);
-                }
             }
 
             const allSuccess = results.every(r => r.success);
 
             if (allSuccess) {
-                setPurchasedTickets(allPdfTickets);
                 setSubmitSuccess(true);
                 setSubmitMessage('🎉 Tickets purchased successfully!');
                 setSelectedTiers([]);
@@ -141,29 +129,7 @@ export default function TicketingPage() {
         }
     };
 
-    const downloadTicket = (ticket: PdfTicket) => {
-        const byteCharacters = atob(ticket.data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'application/pdf' });
 
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = ticket.fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-    };
-
-    const downloadAllTickets = () => {
-        purchasedTickets.forEach((ticket, index) => {
-            setTimeout(() => downloadTicket(ticket), index * 300);
-        });
-    };
 
     if (loading) {
         return (
@@ -191,7 +157,7 @@ export default function TicketingPage() {
                         Purchase Successful!
                     </h1>
                     <p className="mb-4" style={{ color: theme.textMuted }}>
-                        Your tickets are ready to download!
+                        Your tickets have been sent to your email address.
                     </p>
                     <div className="p-4 rounded-xl mb-6" style={{ backgroundColor: 'rgba(245, 197, 24, 0.1)' }}>
                         <p style={{ color: theme.accent }}>
@@ -199,34 +165,12 @@ export default function TicketingPage() {
                         </p>
                     </div>
 
-                    {/* Download Section */}
-                    {purchasedTickets.length > 0 && (
-                        <div className="mb-6">
-                            <button
-                                onClick={downloadAllTickets}
-                                className="w-full py-4 rounded-xl font-bold text-lg mb-4"
-                                style={{ background: theme.gradient, color: theme.text }}
-                            >
-                                📥 Download All Tickets ({purchasedTickets.length})
-                            </button>
-
-                            <div className="space-y-2">
-                                {purchasedTickets.map((ticket, index) => (
-                                    <button
-                                        key={ticket.ticketId}
-                                        onClick={() => downloadTicket(ticket)}
-                                        className="w-full py-3 rounded-xl flex items-center justify-between px-4"
-                                        style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: theme.text }}
-                                    >
-                                        <span>
-                                            🎫 {ticket.tier} Ticket #{index + 1}
-                                        </span>
-                                        <span style={{ color: theme.primary }}>Download</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    <div className="mb-6 p-4 rounded-xl border border-dashed" style={{ borderColor: theme.border, backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                        <p className="text-sm" style={{ color: theme.textMuted }}>
+                            Please check your inbox (and spam folder) for an email from <strong>tickets@cypvasai.org</strong> containing your e-tickets.
+                            Show the QR code from the email at the entrance.
+                        </p>
+                    </div>
 
                     <Link href="/concert">
                         <button

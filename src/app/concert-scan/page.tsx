@@ -42,6 +42,7 @@ interface ScanResult {
     error?: string;
     alreadyScanned?: boolean;
     ticket?: TicketInfo;
+    qrData?: string; // Original QR payload for verification
 }
 
 export default function ConcertScanPage() {
@@ -273,7 +274,8 @@ export default function ConcertScanPage() {
             });
 
             const data = await response.json();
-            setScanResult(data);
+            // Store original QR data for final verification step
+            setScanResult({ ...data, qrData: decodedText });
 
         } catch (error) {
             console.error('Verification error:', error);
@@ -294,7 +296,10 @@ export default function ConcertScanPage() {
             const response = await fetch('/api/concert/scan', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ticketId: scanResult.ticket.id }),
+                body: JSON.stringify({
+                    ticketId: scanResult.ticket.id,
+                    qrData: scanResult.qrData
+                }),
             });
 
             const data = await response.json();

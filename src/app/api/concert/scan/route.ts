@@ -5,13 +5,51 @@ import { verifyQRSignature, parseQRString } from '@/app/lib/qr-signature';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { ticketId } = body;
+        const { ticketId, qrData } = body;
 
+        // 1. Validate Input
         if (!ticketId) {
             return NextResponse.json(
                 { error: 'Missing ticket ID' },
                 { status: 400 }
             );
+        }
+
+        // 2. STAGE 2: STRICT SECURITY CHECK
+        // If qrData is provided (which the updated frontend does), VERIFY THE SIGNATURE
+        if (qrData) {
+            let payload;
+            try {
+                payload = typeof qrData === 'string' ? parseQRString(qrData) : qrData;
+            } catch (e) {
+                return NextResponse.json({ error: 'Invalid QR format' }, { status: 400 });
+            }
+
+            if (!payload || !verifyQRSignature(payload)) {
+                console.warn(`[Security] Invalid signature for ticket ${ticketId}`);
+                return NextResponse.json(
+                    { error: 'SECURITY ALERT: Invalid Ticket Signature. This ticket may be fake.' },
+                    { status: 401 }
+                );
+            }
+
+            // Ensure the ID in the signed payload matches the requested ID
+            if (payload.id !== ticketId) {
+                return NextResponse.json(
+                    { error: 'ID mismatch' },
+                    { status: 400 }
+                );
+            }
+        } else {
+            // Optional: You could reject requests without qrData entirely for maximum security
+            // For now, we allow it but log a warning (or you could uncomment the error below)
+            console.warn(`[Security] Ticket ${ticketId} scanned without signature verification!`);
+
+            // UNCOMMENT TO ENFORCE SIGNATURES GLOBALLY:
+            // return NextResponse.json(
+            //     { error: 'Missing security signature. Please update the scanner.' },
+            //     { status: 400 }
+            // );
         }
 
         const supabase = createServerSupabaseClient();

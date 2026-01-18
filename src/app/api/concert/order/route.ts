@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/app/lib/supabase';
 import { createQRPayload } from '@/app/lib/qr-signature';
+import { scheduleTicketEmail, isQStashConfigured } from '@/app/lib/qstash';
+import { sendTicketEmail, type TicketInfo } from '@/app/lib/email-service';
 import type { TicketMetadata } from '@/app/types/concert';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import QRCode from 'qrcode';
@@ -48,9 +50,9 @@ export async function POST(request: NextRequest) {
         const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const purchaseDate = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
 
-        // Create tickets
+        // Create tickets and collect ticket info for email
         const tickets = [];
-        const pdfDataUrls = [];
+        const ticketInfos: TicketInfo[] = [];
 
         for (let i = 0; i < quantity; i++) {
             // Create QR payload for this ticket
@@ -102,11 +104,15 @@ export async function POST(request: NextRequest) {
 
             // Generate PDF and get base64
             const pdfBase64 = await generateTicketPDF(ticketData);
-            pdfDataUrls.push({
+            const fileName = `CYP-Concert-Ticket-${tier}-${ticketId.substring(0, 8)}.pdf`;
+
+            // Collect ticket info for consolidated email
+            ticketInfos.push({
                 ticketId,
                 tier,
-                fileName: `CYP-Concert-Ticket-${tier}-${ticketId.substring(0, 8)}.pdf`,
-                data: pdfBase64,
+                qrPayload,
+                fileName,
+                pdfBase64,
             });
         }
 
@@ -119,16 +125,43 @@ export async function POST(request: NextRequest) {
             })
             .eq('tier', tier);
 
+        // Send consolidated email with all ticket PDFs
+        // Use QStash if configured (async), otherwise send directly
+        let emailStatus = 'pending';
+
+        if (isQStashConfigured()) {
+            // Schedule email via QStash (returns immediately)
+            try {
+                const result = await scheduleTicketEmail({
+                    buyerEmail: email,
+                    buyerName: name,
+                    purchaseDate,
+                    tickets: ticketInfos,
+                });
+                console.log(`Email scheduled via QStash, messageId: ${result.messageId}`);
+                emailStatus = 'scheduled';
+            } catch (qstashError) {
+                console.error('QStash scheduling failed, falling back to direct send:', qstashError);
+                // Fallback to direct send
+                await sendTicketEmail(email, name, purchaseDate, ticketInfos);
+                emailStatus = 'sent';
+            }
+        } else {
+            // No QStash configured, send directly
+            await sendTicketEmail(email, name, purchaseDate, ticketInfos);
+            emailStatus = 'sent';
+        }
+
         return NextResponse.json({
             success: true,
-            message: `Successfully purchased ${quantity} ${tier} ticket(s)!`,
+            message: `Successfully purchased ${quantity} ${tier} ticket(s)! Check your email for the tickets.`,
             orderId,
+            emailStatus,
             tickets: tickets.map(t => ({
                 id: t.id,
                 tier: t.tier,
                 status: t.status,
             })),
-            pdfTickets: pdfDataUrls,
         });
 
     } catch (error) {
