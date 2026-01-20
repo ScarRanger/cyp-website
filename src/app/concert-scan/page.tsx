@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-// CHANGED: We import Html5Qrcode (Core) instead of Scanner to support your custom UI
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { initDB, isScannedLocally, storeScanLocally, getDeviceId, type LocalScan } from "@/app/lib/offline-db";
+import { verifyQROffline, parseQRPayload } from "@/app/lib/offline-verify";
+import { startBackgroundSync, isOnline } from "@/app/lib/sync-service";
 
 const theme = {
     background: '#0f0f1a',
@@ -55,17 +57,57 @@ export default function ConcertScanPage() {
     const [scanResult, setScanResult] = useState<ScanResult | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [scanCount, setScanCount] = useState(0);
+    const [isOfflineMode, setIsOfflineMode] = useState(false);
+    const [pendingSyncs, setPendingSyncs] = useState(0);
+    const [conflicts, setConflicts] = useState<LocalScan[]>([]);
 
     // Ref to hold the scanner instance
     const scannerRef = useRef<Html5Qrcode | null>(null);
 
-    // Check for saved session
+    // Check for saved session + register service worker
     useEffect(() => {
         const savedAuth = sessionStorage.getItem('scanner_auth');
         if (savedAuth === 'authenticated') {
             setIsAuthenticated(true);
         }
+
+        // Register service worker for offline page caching
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then((reg) => console.log('[SW] Registered:', reg.scope))
+                .catch((err) => console.error('[SW] Registration failed:', err));
+        }
     }, []);
+
+    // Initialize offline capabilities
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        // Initialize IndexedDB
+        initDB().catch(console.error);
+
+        // Start background sync
+        const stopSync = startBackgroundSync(30000); // Sync every 30 seconds
+
+        // Monitor online/offline status
+        const updateOnlineStatus = () => setIsOfflineMode(!navigator.onLine);
+        updateOnlineStatus();
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        // Listen for sync conflicts
+        const handleConflicts = (e: CustomEvent) => {
+            setConflicts(prev => [...prev, ...e.detail.conflicts]);
+        };
+        window.addEventListener('scan-conflicts', handleConflicts as EventListener);
+
+        return () => {
+            stopSync();
+            window.removeEventListener('online', updateOnlineStatus);
+            window.removeEventListener('offline', updateOnlineStatus);
+            window.removeEventListener('scan-conflicts', handleConflicts as EventListener);
+        };
+    }, [isAuthenticated]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -267,21 +309,87 @@ export default function ConcertScanPage() {
         setIsProcessing(true);
 
         try {
-            const response = await fetch('/api/concert/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ qrData: decodedText }),
-            });
+            // OFFLINE-FIRST: Verify signature locally first
+            const { valid, payload, error } = await verifyQROffline(decodedText);
 
-            const data = await response.json();
-            // Store original QR data for final verification step
-            setScanResult({ ...data, qrData: decodedText });
+            if (!valid || !payload) {
+                setScanResult({
+                    valid: false,
+                    error: error || 'Invalid QR code',
+                });
+                return;
+            }
 
+            // Check if already scanned locally (on this device)
+            const existingLocalScan = await isScannedLocally(payload.id);
+            if (existingLocalScan) {
+                setScanResult({
+                    valid: false,
+                    error: 'Already scanned on this device!',
+                    alreadyScanned: true,
+                    ticket: {
+                        id: payload.id,
+                        tier: payload.tier,
+                        status: 'used',
+                        buyerName: payload.name,
+                        scannedAt: existingLocalScan.scannedAt,
+                    },
+                });
+                return;
+            }
+
+            // If online, also verify with server
+            if (isOnline()) {
+                try {
+                    const response = await fetch('/api/concert/verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ qrData: decodedText }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.alreadyScanned) {
+                        setScanResult({ ...data, qrData: decodedText });
+                        return;
+                    }
+
+                    // Store original QR data for confirmation step
+                    setScanResult({ ...data, qrData: decodedText });
+                } catch (error) {
+                    // Network error - fall back to offline mode
+                    console.log('Network error, using offline mode');
+                    setScanResult({
+                        valid: true,
+                        message: 'Valid ticket (offline mode)',
+                        ticket: {
+                            id: payload.id,
+                            tier: payload.tier,
+                            status: 'valid',
+                            buyerName: payload.name,
+                        },
+                        qrData: decodedText,
+                    });
+                }
+            } else {
+                // Offline mode - signature verified, show as valid
+                setScanResult({
+                    valid: true,
+                    message: 'Valid ticket (offline mode)',
+                    ticket: {
+                        id: payload.id,
+                        tier: payload.tier,
+                        status: 'valid',
+                        buyerName: payload.name,
+                    },
+                    qrData: decodedText,
+                });
+            }
         } catch (error) {
             console.error('Verification error:', error);
             setScanResult({
                 valid: false,
-                error: 'Failed to verify ticket. Check connection.',
+                error: 'Failed to verify ticket.',
             });
         } finally {
             setIsProcessing(false);
@@ -289,50 +397,98 @@ export default function ConcertScanPage() {
     };
 
     const handleConfirmScan = async () => {
-        if (!scanResult?.ticket?.id) return;
+        if (!scanResult?.ticket?.id || !scanResult.qrData) return;
         setIsProcessing(true);
 
+        const ticketId = scanResult.ticket.id;
+        const deviceId = getDeviceId();
+        const scannedAt = new Date().toISOString();
+
         try {
-            const response = await fetch('/api/concert/scan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ticketId: scanResult.ticket.id,
-                    qrData: scanResult.qrData
-                }),
-            });
+            // ALWAYS store locally first (offline-first)
+            const localScan: LocalScan = {
+                ticketId,
+                tier: scanResult.ticket.tier,
+                buyerName: scanResult.ticket.buyerName,
+                scannedAt,
+                deviceId,
+                synced: false,
+                conflict: false,
+                qrData: scanResult.qrData,
+            };
 
-            const data = await response.json();
+            await storeScanLocally(localScan);
+            setScanCount(prev => prev + 1);
 
-            if (data.success) {
-                setScanCount(prev => prev + 1);
+            // Try to sync to server if online
+            if (isOnline()) {
+                try {
+                    const response = await fetch('/api/concert/scan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ticketId,
+                            qrData: scanResult.qrData
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Update local record as synced
+                        localScan.synced = true;
+                        await storeScanLocally(localScan);
+
+                        setScanResult({
+                            valid: true,
+                            message: '✓ Entry Confirmed!',
+                            ticket: scanResult.ticket,
+                        });
+                    } else if (data.alreadyScanned) {
+                        // Conflict detected
+                        localScan.synced = true;
+                        localScan.conflict = true;
+                        await storeScanLocally(localScan);
+
+                        setScanResult({
+                            valid: false,
+                            error: 'Already scanned on another device!',
+                            alreadyScanned: true,
+                            ticket: scanResult.ticket,
+                        });
+                        return;
+                    }
+                } catch (networkError) {
+                    // Network failed - scan is stored locally, will sync later
+                    console.log('Network error, scan saved locally');
+                    setScanResult({
+                        valid: true,
+                        message: '✓ Entry Confirmed (will sync)',
+                        ticket: scanResult.ticket,
+                    });
+                }
+            } else {
+                // Offline - scan saved locally
                 setScanResult({
                     valid: true,
-                    message: '✓ Entry Confirmed!',
-                    ticket: scanResult.ticket,
-                });
-
-                if (navigator.vibrate) {
-                    navigator.vibrate(200);
-                }
-
-                setTimeout(() => {
-                    setScanResult(null);
-                }, 3000);
-            } else {
-                setScanResult({
-                    valid: false,
-                    error: data.error || 'Failed to confirm entry',
-                    alreadyScanned: data.alreadyScanned,
+                    message: '✓ Entry Confirmed (offline)',
                     ticket: scanResult.ticket,
                 });
             }
+
+            if (navigator.vibrate) {
+                navigator.vibrate(200);
+            }
+
+            setTimeout(() => {
+                setScanResult(null);
+            }, 3000);
 
         } catch (error) {
             console.error('Scan confirmation error:', error);
             setScanResult({
                 valid: false,
-                error: 'Network error. Please try again.',
+                error: 'Failed to save scan. Try again.',
             });
         } finally {
             setIsProcessing(false);

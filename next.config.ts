@@ -72,6 +72,18 @@ if (s3Bucket) {
   }
 }
 
+// Add hardcoded CloudFront domain used in upload route
+const cloudFrontPattern = {
+  protocol: "https" as const,
+  hostname: "ds33df8kutjjh.cloudfront.net",
+  pathname: "**",
+};
+if (!images) {
+  images = { remotePatterns: [cloudFrontPattern] };
+} else if (images.remotePatterns) {
+  images.remotePatterns.push(cloudFrontPattern as any);
+}
+
 const nextConfig: NextConfig = {
   images,
   // Compress pages and enable static optimization

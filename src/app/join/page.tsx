@@ -8,8 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/ca
 import { MapPin, Clock } from "lucide-react";
 import { useState } from "react";
 
-const mapsUrl = "https://maps.app.goo.gl/q2GgBCUyaGfCgj7RA";
-const mapsEmbed = "https://www.google.com/maps?q=Jeevan+Darshan+Kendra,+Giriz&output=embed";
+// Location links removed as requested
+
 
 // Warm Espresso Theme Colors
 const theme = {
@@ -88,7 +88,7 @@ export default function JoinPage() {
             >
               <Card className="border" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
                 <CardHeader>
-                  <CardTitle className="text-2xl" style={{ color: theme.text }}>Join us at Jeevan Darshan Kendra, Giriz</CardTitle>
+                  <CardTitle className="text-2xl" style={{ color: theme.text }}>Join our Weekly Fellowship</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
@@ -97,8 +97,8 @@ export default function JoinPage() {
                         <MapPin className="h-6 w-6" style={{ color: theme.primary }} />
                       </div>
                       <div>
-                        <p className="font-semibold text-lg" style={{ color: theme.text }}>Jeevan Darshan Kendra, Giriz</p>
-                        <p className="opacity-70" style={{ color: theme.text }}>Vasai</p>
+                        <p className="font-semibold text-lg" style={{ color: theme.text }}>Vasai</p>
+                        <p className="opacity-70" style={{ color: theme.text }}>Maharashtra, India</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -107,13 +107,7 @@ export default function JoinPage() {
                       </div>
                       <p className="font-medium" style={{ color: theme.text }}>Every Monday, 7:00 PM – 9:00 PM</p>
                     </div>
-                    <div className="pt-4 flex flex-col sm:flex-row gap-3">
-                      <Button asChild size="lg" className="w-full sm:w-auto font-semibold" style={{ backgroundColor: theme.primary, color: '#1C1917' }}>
-                        <Link href={mapsUrl} target="_blank" rel="noopener noreferrer" aria-label="Open location in Google Maps">
-                          Open in Google Maps
-                        </Link>
-                      </Button>
-                    </div>
+                    {/* Location button removed */}
                   </div>
                 </CardContent>
               </Card>
@@ -249,26 +243,7 @@ export default function JoinPage() {
             </motion.div>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="mt-8"
-          >
-            <div className="relative overflow-hidden rounded-xl border shadow-2xl" style={{ borderColor: theme.border }}>
-              <div className="relative aspect-video w-full bg-gray-900">
-                <iframe
-                  className="h-full w-full opacity-90 hover:opacity-100 transition-opacity"
-                  src={mapsEmbed}
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  aria-label="Map for Jeevan Darshan Kendra, Giriz"
-                  style={{ filter: 'invert(90%) hue-rotate(180deg) contrast(90%)' }}
-                />
-              </div>
-            </div>
-          </motion.div>
+          {/* Map Section Removed */}
         </div>
       </section>
     </main>

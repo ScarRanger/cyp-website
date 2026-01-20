@@ -456,10 +456,10 @@ END:VCALENDAR`;
               <MapPin className="w-6 h-6" style={{ color: theme.secondary }} />
             </div>
             <div>
-              <h3 className="font-bold" style={{ color: theme.textBright }}>Jeevan Darshan Kendra</h3>
-              <a href="https://maps.app.goo.gl/q2GgBCUyaGfCgj7RA" target="_blank" rel="noopener noreferrer" className="text-sm font-medium flex items-center gap-1 hover:opacity-80 transition-opacity" style={{ color: theme.primary }}>
-                Get Directions <ArrowRight className="w-3 h-3" />
-              </a>
+              <h3 className="font-bold" style={{ color: theme.textBright }}>Vasai</h3>
+              <p className="text-sm font-medium" style={{ color: theme.text, opacity: 0.7 }}>
+                Maharashtra, India
+              </p>
             </div>
           </div>
         </div>
@@ -769,6 +769,6 @@ END:VCALENDAR`;
           </div>
         </div>
       </section>
-    </main>
+    </main >
   );
 }

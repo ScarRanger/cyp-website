@@ -121,7 +121,7 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
 
     try {
       setUploadingImage(true);
-      
+
       // Create preview immediately
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -332,8 +332,8 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
                     }
                   }}
                   className={`text-sm border rounded px-2 py-1 focus:outline-none focus:ring-2 ${isEspresso
-                      ? 'bg-[#1C1917] border-[#FB923C]/30 text-[#FAFAFA] focus:ring-[#FB923C]'
-                      : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
+                    ? 'bg-[#1C1917] border-[#FB923C]/30 text-[#FAFAFA] focus:ring-[#FB923C]'
+                    : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
                     }`}
                 >
                   <option value="">Add Field Type</option>
@@ -358,8 +358,8 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
                 <div
                   key={field.id}
                   className={`p-3 border rounded-lg transition-colors ${selectedFieldId === field.id
-                      ? isEspresso ? 'border-[#FB923C] bg-[#FB923C]/10' : 'border-blue-500 bg-blue-50'
-                      : isEspresso ? 'border-[#FB923C]/20 hover:border-[#FB923C]/40' : 'border-gray-200 hover:border-gray-300'
+                    ? isEspresso ? 'border-[#FB923C] bg-[#FB923C]/10' : 'border-blue-500 bg-blue-50'
+                    : isEspresso ? 'border-[#FB923C]/20 hover:border-[#FB923C]/40' : 'border-gray-200 hover:border-gray-300'
                     }`}
                   draggable
                   onDragStart={() => setDragIndex(index)}
@@ -423,8 +423,8 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
             onClick={saveForm}
             disabled={isSaving || form.fields.length === 0}
             className={`w-full py-3 px-4 rounded-md focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold ${isEspresso
-                ? 'bg-[#FB923C] text-[#1C1917] hover:bg-[#FCD34D] focus:ring-[#FB923C]'
-                : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
+              ? 'bg-[#FB923C] text-[#1C1917] hover:bg-[#FCD34D] focus:ring-[#FB923C]'
+              : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
               }`}
           >
             <Save size={20} className="mr-2" />
@@ -454,8 +454,8 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
                     }
                   }}
                   className={`inline-flex items-center gap-2 px-3 py-2 rounded-md ${isEspresso
-                      ? 'bg-[#FB923C]/20 hover:bg-[#FB923C]/30 text-[#FB923C]'
-                      : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                    ? 'bg-[#FB923C]/20 hover:bg-[#FB923C]/30 text-[#FB923C]'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
                     }`}
                 >
                   {copied ? <Check size={16} /> : <Clipboard size={16} />}
@@ -550,8 +550,8 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
                       } catch (_) { /* no-op */ }
                     }}
                     className={`inline-flex items-center gap-2 px-3 py-2 rounded-md ${isEspresso
-                        ? 'bg-[#FB923C]/20 hover:bg-[#FB923C]/30 text-[#FB923C]'
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                      ? 'bg-[#FB923C]/20 hover:bg-[#FB923C]/30 text-[#FB923C]'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
                       }`}
                   >
                     {dialogCopied ? <Check size={16} /> : <Clipboard size={16} />}
@@ -577,8 +577,8 @@ export default function FormBuilder({ initialForm, theme = 'light' }: FormBuilde
               <button
                 onClick={() => setDialogOpen(false)}
                 className={`inline-flex items-center rounded-md border px-4 py-2 text-sm ${isEspresso
-                    ? 'border-[#FB923C]/30 bg-transparent text-[#FAFAFA] hover:bg-white/5'
-                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  ? 'border-[#FB923C]/30 bg-transparent text-[#FAFAFA] hover:bg-white/5'
+                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                   }`}
               >
                 Close

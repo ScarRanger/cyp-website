@@ -9,12 +9,14 @@ import { Menu, X } from "lucide-react";
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/events", label: "Events" },
-  { href: "/forms", label: "Forms" },
+  // { href: "/forms", label: "Forms" },
   { href: "/gallery", label: "Gallery" },
+  { href: "/history", label: "History" },
+
   { href: "/talks", label: "Talks" },
-  // { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact Us" },
   { href: "/join", label: "Join Us" },
-  { href: "/fundraiser", label: "Our Store" },
+  // { href: "/fundraiser", label: "Our Store" },
 ];
 
 export default function Header() {
