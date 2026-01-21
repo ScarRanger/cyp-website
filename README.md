@@ -5,7 +5,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/license-Private-red.svg)](LICENSE)
 
-> A comprehensive web platform for the Catholic Youth in Power (CYP) Vasai community, empowering young people through faith, fellowship, and service.
+> **The official digital ecosystem for the Catholic Youth in Power (CYP) Vasai community.**
+
+This platform serves as the central hub for youth empowerment, combining faith, fellowship, and modern technology. It facilitates event management, secure ticket scanning, media streaming, and community engagement through a robust, scalable web application.
 
 🌐 **Live Site:** [www.cypvasai.org](https://www.cypvasai.org)
 
@@ -13,379 +15,117 @@
 
 ## 📋 Table of Contents
 
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [Getting Started](#-getting-started)
+- [Core Modules](#-core-modules)
+- [Technical Architecture](#-technical-architecture)
 - [Project Structure](#-project-structure)
-- [Key Features in Detail](#-key-features-in-detail)
 - [Scripts & Automation](#-scripts--automation)
 - [Configuration](#-configuration)
-- [Deployment](#-deployment)
 - [Contributing](#-contributing)
 
 ---
 
-## ✨ Features
+## 🧩 Core Modules
+
+### 📱 Progressive Web App (PWA) & Scanner
+Designed for reliable offline usage in low-connectivity environments.
+- **Offline-First Ticket Scanning**: `concert-scan` module works without internet, syncing data later.
+- **Installable Experience**: Fully compliant PWA with manifest and service workers.
+- **Duplicate Detection**: Local caching prevents ticket reuse across multiple entry points.
 
 ### 🎟️ Lottery Management System
-- **Real-time ticket booking** with live availability updates
-- **Scalable architecture** supporting 1,000+ tickets and 100+ concurrent users
-- **Automated e-ticket generation** and email delivery via Resend
-- **Order tracking** with unique confirmation codes
-- **Admin dashboard** for ticket management and monitoring
-- **Google Sheets integration** for sales tracking and analytics
-- **Sequential ticket numbering** with configurable ranges
-- See [LOTTERY-SCALING.md](LOTTERY-SCALING.md) for scaling documentation
+High-performance ticketing engine.
+- **Real-Time Availability**: Powered by Supabase Realtime subscriptions.
+- **Scalability**: Tested for 100+ concurrent users and 1,000+ tickets.
+- **Security**: QR signature verification maintains ticket authenticity.
+- **Automated Fulfillment**: E-tickets and confirmation emails sent instantly via Resend.
 
-### 🎫 Event Management
-- Dynamic event creation and management
-- Event registration with form submissions
-- SEO-optimized event pages with metadata
-- Event categorization and filtering
-- Responsive event calendar and listings
+### 🎥 CYP Talks & Media Gallery
+A dedicated streaming and media platform.
+- **Adaptive Streaming**: HLS video delivery via AWS CloudFront for optimal playback quality.
+- **Google Photos Integration**: Dynamic gallery syncing with OAuth 2.0.
+- **Large Asset Management**: Admin tools for uploading multi-gigabyte video files directly to S3.
 
-### 📝 Dynamic Form Builder
-- Custom form creation with drag-and-drop interface
-- Multiple field types (text, email, phone, checkbox, radio, textarea)
-- Real-time form submissions storage
-- Admin dashboard for viewing submissions
-- Export capabilities for form data
+### 🎫 Event & Team Management
+- **Event Registration**: Dynamic event creation with SEO-optimized pages.
+- **Team Showcases**: Dedicated sections for ministry teams (`/teams`) and organization history (`/history`).
+- **Dynamic Form Builder**: Custom drag-and-drop forms for surveys and feedback.
 
-### 💰 Fundraiser & E-commerce
-- Product catalog management
-- Shopping cart functionality
-- Integrated payment processing
-- Order management system
-- Product inventory tracking
-- Donation capabilities
-
-### 📸 Media Gallery
-- **Google Photos integration** for seamless photo management
-- Multi-category gallery organization
-- Album-based photo collections
-- Responsive image grid layouts
-- HEIC image format support with automatic conversion
-- Video content support
-
-### 🎥 CYP Talks (Video Platform)
-- Video streaming with HLS support
-- Secure video delivery via CloudFront
-- Talk categorization and search
-- Video player with custom controls
-- Social sharing capabilities
-- Watch history tracking
-
-### 👥 Team Management
-- Multiple ministry team profiles
-- Team member showcases
-- Dynamic team pages with custom theming
-- Role-based information display
-
-### 🔐 Authentication & Security
-- Firebase authentication integration
-- Role-based access control (Admin, Editor, Viewer)
-- Secure API endpoints
-- Protected admin routes
-- Session management
-
-### 📧 Member Management
-- New member registration portal
-- Email notifications for submissions
-- Database integration for member records
-- Contact form submissions
+### 🤝 Community & Fundraising
+- **Fundraiser Store**: E-commerce functionality for community support.
+- **Member Registration**: Seamless onboarding for new community members.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Technical Architecture
 
 ### Frontend
-- **Next.js 16.1** - React framework with App Router
-- **React 19.1** - UI library
-- **TypeScript 5.9** - Type-safe development
-- **Tailwind CSS 4.1** - Utility-first styling
-- **Framer Motion** - Smooth animations
-- **React Hook Form + Zod** - Form validation
+- **Framework**: Next.js 16.1 (App Router)
+- **UI Library**: React 19.1
+- **Language**: TypeScript 5.9
+- **Styling**: Tailwind CSS 4.1, Framer Motion
+- **State/Form**: React Hook Form, Zod
 
-### Backend & Services
-- **Supabase** - Database and real-time subscriptions
-- **Firebase** - Authentication and admin SDK
-- **Appwrite** - Additional backend services
-- **AWS S3 + CloudFront** - Media storage and CDN
-- **Google APIs** - Photos, Sheets, and OAuth integration
-- **Resend** - Transactional email service
-- **Nodemailer** - Email automation
-
-### Development Tools
-- **ESLint** - Code linting
-- **TypeScript** - Static type checking
-- **Turbopack** - Fast build tooling
-- **pnpm** - Package management
-- **tsx** - TypeScript execution for scripts
+### Backend & Cloud Services
+- **Database**: Supabase (PostgreSQL) + Realtime
+- **Auth**: Firebase Authentication (Google Sign-In)
+- **CMS/Storage**: AWS S3 (Storage), AWS CloudFront (CDN)
+- **Email**: Resend & Nodemailer (SMTP)
+- **Additional**: Appwrite, Google APIs (Photos, Sheets)
 
 ---
-
-## 🚀 Getting Started
-
-
 
 ## 📁 Project Structure
 
 ```
 cyp-website/
-├── public/                      # Static assets
-│   ├── fonts/                   # Custom fonts
-│   └── manifest.json           # PWA manifest
-├── scripts/                     # Automation scripts
-│   ├── add-lottery-product.ts  # Lottery product setup
-│   ├── add-more-tickets.ts     # Scale lottery tickets
-│   ├── initialize-lottery-tickets-supabase.ts
-│   ├── sync-lottery-to-sheets.ts
-│   └── verify-production-ready.ts
+├── public/                      # Static assets & PWA manifest
+├── scripts/                     # Operational & Maintenance scripts
 ├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── admin/             # Admin dashboard
-│   │   │   ├── events/        # Event management
-│   │   │   ├── forms/         # Form builder
-│   │   │   ├── fundraiser/    # Product management
-│   │   │   ├── gallery/       # Gallery admin
-│   │   │   ├── lottery/       # Lottery admin
-│   │   │   └── talks/         # Video management
-│   │   ├── api/               # API routes
-│   │   │   ├── events/        # Event APIs
-│   │   │   ├── forms/         # Form submission APIs
-│   │   │   ├── lottery/       # Lottery booking APIs
-│   │   │   ├── gallery/       # Gallery APIs
-│   │   │   └── upload/        # File upload APIs
-│   │   ├── components/        # Shared components
-│   │   │   ├── Auth/          # Authentication components
-│   │   │   ├── FormBuilder/   # Form builder components
-│   │   │   ├── Gallery/       # Gallery components
-│   │   │   └── ui/            # UI primitives
-│   │   ├── events/            # Events section
-│   │   ├── forms/             # Dynamic forms
-│   │   ├── fundraiser/        # E-commerce
-│   │   ├── gallery/           # Media gallery
-│   │   ├── lottery/           # Lottery booking
-│   │   ├── talks/             # Video platform
-│   │   └── join/              # Member registration
-│   ├── lib/                   # Utility libraries
-│   │   ├── firebase.ts        # Firebase client
-│   │   ├── firebase-admin.ts  # Firebase admin
-│   │   ├── supabase.ts        # Supabase client
-│   │   ├── s3.ts              # AWS S3 client
-│   │   ├── google-sheets.ts   # Sheets integration
-│   │   └── google-photos-client.ts
-│   └── types/                 # TypeScript definitions
-├── cgs_schema.sql             # Database schema
-├── LOTTERY-SCALING.md         # Lottery scaling guide
-├── next.config.ts             # Next.js configuration
-├── tsconfig.json              # TypeScript configuration
-└── package.json               # Dependencies
-```
-
----
-
-## 🎯 Key Features in Detail
-
-### Lottery System Architecture
-
-The lottery system is designed for high scalability and reliability:
-
-- **Real-time Updates**: Uses Supabase real-time subscriptions for live ticket availability
-- **Optimistic Locking**: Prevents double-booking with database-level constraints
-- **Configurable Ranges**: Easy ticket range configuration in frontend
-- **E-ticket Generation**: Automated ticket generation with unique codes
-- **Email Integration**: Automatic confirmation emails via Resend
-- **Admin Tools**: Comprehensive admin dashboard for monitoring and management
-- **Analytics**: Google Sheets integration for real-time sales tracking
-
-**Capacity:**
-- ✅ Tested with 1,000+ tickets
-- ✅ Handles 100+ concurrent users
-- ✅ Unlimited scalability with configurable ranges
-
-See [LOTTERY-SCALING.md](LOTTERY-SCALING.md) for detailed documentation.
-
-### Video Streaming (CYP Talks)
-
-- **HLS Streaming**: Adaptive bitrate streaming for optimal playback
-- **Secure Delivery**: CloudFront signed URLs for content protection
-- **Video Management**: Upload, organize, and categorize talks
-- **Custom Player**: Built with hls.js for cross-browser compatibility
-- **Social Sharing**: Share talks via social media platforms
-- **No Download Protection**: Prevents unauthorized downloads
-
-### Google Photos Integration
-
-- **OAuth 2.0 Authentication**: Secure access to Google Photos
-- **Album Sync**: Automatic synchronization of photo albums
-- **HEIC Support**: Converts HEIC images to web-compatible formats
-- **Caching**: Efficient caching for improved performance
-- **Category Organization**: Organize photos by event categories
-
----
-
-## 🔧 Scripts & Automation
-
-### Lottery Management
-
-```bash
-# Initialize lottery tickets in database
-pnpm tsx scripts/initialize-lottery-tickets-supabase.ts
-
-# Add more tickets (scale up)
-pnpm tsx scripts/add-more-tickets.ts
-
-# Sync lottery data to Google Sheets
-pnpm tsx scripts/sync-lottery-to-sheets.ts
-
-# Resend e-tickets
-pnpm tsx scripts/resend-lottery-etickets.ts
-
-# Check confirmed orders
-pnpm tsx scripts/check-confirmed-orders.ts
-
-# Cleanup old data
-pnpm tsx scripts/cleanup-lottery-data.ts
-
-# Reset tickets (development only)
-pnpm tsx scripts/reset-lottery-tickets.ts
-```
-
-### Other Scripts
-
-```bash
-# Upload images to Google Sheets
-pnpm tsx scripts/upload-images-to-sheets.ts
-
-# Verify production readiness
-pnpm tsx scripts/verify-production-ready.ts
+│   ├── app/                     # Next.js App Router
+│   │   ├── admin/               # Protected Admin Dashboard
+│   │   ├── api/                 # Backend API Routes
+│   │   ├── concert/             # Concert details
+│   │   ├── concert-scan/        # Offline PWA Scanner
+│   │   ├── events/              # Event management
+│   │   ├── forms/               # Dynamic form renderer
+│   │   ├── fundraiser/          # Donation & Store
+│   │   ├── gallery/             # Media gallery
+│   │   ├── lottery/             # Lottery booking system
+│   │   ├── talks/               # Video streaming platform
+│   │   └── teams/               # Team listings
+│   ├── lib/                     # Service clients (S3, Firebase, Supabase, etc.)
+│   └── types/                   # TypeScript definitions
+├── cgs_schema.sql               # Database Schema
+├── next.config.ts               # Next.js & PWA Configuration
+└── package.json                 # Project Dependencies
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-### Next.js Configuration
-
-The `next.config.ts` file includes:
-- Image optimization settings
-- Remote image patterns for external sources
-- Environment variable configuration
-- Redirect rules
-- Headers for security
-
-### Database Schema
-
-The `cgs_schema.sql` file contains the complete database schema for:
-- User authentication
-- Event management
-- Form submissions
-- Lottery tickets and orders
-- Gallery metadata
-- Video content
-
----
-
-## 🚢 Deployment
-
-### Vercel (Recommended)
-
-1. **Connect Repository**
-   ```bash
-   vercel
-   ```
-
-2. **Set Environment Variables**
-   - Add all environment variables in the Vercel dashboard
-   - Ensure production URLs are configured
-
-3. **Deploy**
-   ```bash
-   vercel --prod
-   ```
-
-### Manual Deployment
-
-1. **Build the application**
-   ```bash
-   pnpm build
-   ```
-
-2. **Start production server**
-   ```bash
-   pnpm start
-   ```
-
-### Environment Setup
-
-Ensure all environment variables are configured in your deployment platform:
-- Firebase credentials
-- Supabase keys
-- AWS credentials
-- Google API credentials
-- Email service configuration
+Key configuration files:
+- **`next.config.ts`**: Handles PWA plugins, image domains, and security headers.
+- **`.env.local`**: Stores confidential API keys for Firebase, AWS, and Supabase.
+- **`manifest.json`**: Controls PWA behavior (icons, theme colors).
 
 ---
 
 ## 🤝 Contributing
 
-### Development Workflow
+We welcome contributions from the CYP Tech Team!
 
-1. Create a feature branch
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. Make your changes with proper TypeScript types
-
-3. Test thoroughly in development
-   ```bash
-   pnpm dev
-   ```
-
-4. Lint your code
-   ```bash
-   pnpm lint
-   ```
-
-5. Commit with descriptive messages
-   ```bash
-   git commit -m "feat: add new feature description"
-   ```
-
-6. Push and create a pull request
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-### Code Standards
-
-- Use TypeScript for all new code
-- Follow the existing code structure and patterns
-- Add proper error handling
-- Include JSDoc comments for complex functions
-- Maintain responsive design principles
+1.  **Branching**: Create a feature branch (`git checkout -b feature/amazing-feature`).
+2.  **Standards**: Ensure strict TypeScript typing and run linters.
+3.  **Testing**: Verify functionality in `pnpm dev`.
+4.  **Pull Request**: Submit a PR describing your changes.
 
 ---
 
 ## 📄 License
 
-This project is private and proprietary to Christian Youth in Power (CYP) Vasai.
-
----
-
-## 📞 Contact & Support
-
-- **Website:** [www.cypvasai.org](https://www.cypvasai.org)
-- **Meetings:** Every Monday at 7 PM
-- **Community:** Catholic Youth in Power, Vasai
-
----
-
-## 🙏 Acknowledgments
-
-Built with love for the CYP Vasai community to empower young people through faith, fellowship, and service.
+**© CYP Vasai**. All rights reserved.
+This project is proprietary software developed for the Christian Youth in Power community.
 
 ---
 

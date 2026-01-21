@@ -14,3 +14,6 @@ export const S3_PUBLIC_BASEURL = process.env.AWS_S3_PUBLIC_BASEURL as string | u
 // Talks-specific overrides: allow separate bucket and CDN domain for talks
 export const TALKS_S3_BUCKET = (process.env.AWS_TALKS_S3_BUCKET || process.env.AWS_S3_BUCKET) as string;
 export const TALKS_PUBLIC_BASEURL = (process.env.AWS_TALKS_PUBLIC_BASEURL || process.env.AWS_S3_PUBLIC_BASEURL) as string | undefined;
+
+// Assets bucket for large raw files
+export const ASSETS_S3_BUCKET = (process.env.AWS_ASSESTS_S3_BUCKET || "cyp-website-assets") as string;
