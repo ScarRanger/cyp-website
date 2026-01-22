@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 
@@ -21,13 +21,7 @@ interface GalleryPhoto {
     caption: string;
 }
 
-const HISTORY_CONTENT: {
-    title: string;
-    subtitle: string;
-    timeline: Array<{ year: string; title: string; description: string; image: string | null }>;
-    story: string[];
-    gallery: GalleryPhoto[];
-} = {
+const HISTORY_CONTENT = {
     title: "Our History",
     subtitle: "The Journey of Christian Youth in Power",
 
@@ -79,17 +73,26 @@ const HISTORY_CONTENT: {
 
         "Since then, Christian Youth in Power has continued to play an instrumental role in evangelizing and transforming the lives of young people across Vasai and Mumbai. Rooted in worship, empowered by the Holy Spirit, and committed to proclaiming Christ, CYP remains a living testimony to how God uses young hearts to ignite renewal in the Church.",
     ],
-
-    // Gallery images via CloudFront
-    gallery: [
-        { src: "https://ds33df8kutjjh.cloudfront.net/images/history/gallery/image.png", caption: "CYP Gathering" },
-        { src: "https://ds33df8kutjjh.cloudfront.net/images/history/gallery/image%20copy.png", caption: "Youth Worship" },
-        { src: "https://ds33df8kutjjh.cloudfront.net/images/history/gallery/image%20copy%202.png", caption: "Community Fellowship" },
-        { src: "https://ds33df8kutjjh.cloudfront.net/images/history/gallery/camp2025.jpg", caption: "Camp 2025" },
-    ],
 };
 
 export default function HistoryPage() {
+    const [gallery, setGallery] = useState<GalleryPhoto[]>([]);
+
+    useEffect(() => {
+        async function fetchGallery() {
+            try {
+                const res = await fetch("/api/history/gallery");
+                if (res.ok) {
+                    const data = await res.json();
+                    setGallery(data.gallery || []);
+                }
+            } catch (error) {
+                console.error("Failed to fetch gallery:", error);
+            }
+        }
+        fetchGallery();
+    }, []);
+
     return (
         <div className="min-h-screen" style={{ backgroundColor: theme.background }}>
             {/* Hero Section */}
@@ -287,7 +290,7 @@ export default function HistoryPage() {
             </section>
 
             {/* Photo Gallery Section */}
-            {HISTORY_CONTENT.gallery.length > 0 && (
+            {gallery.length > 0 && (
                 <section className="py-16 md:py-20 px-4">
                     <div className="max-w-6xl mx-auto">
                         <motion.h2
@@ -301,7 +304,7 @@ export default function HistoryPage() {
                         </motion.h2>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {HISTORY_CONTENT.gallery.map((photo, index) => (
+                            {gallery.map((photo: GalleryPhoto, index: number) => (
                                 <motion.div
                                     key={index}
                                     className="relative group rounded-2xl overflow-hidden aspect-[4/3]"
@@ -318,12 +321,6 @@ export default function HistoryPage() {
                                         fill
                                         className="object-cover transition-transform duration-500 group-hover:scale-110"
                                     />
-                                    <div
-                                        className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                    />
-                                    <div className="absolute bottom-0 left-0 right-0 p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                                        <p className="text-white text-sm font-medium">{photo.caption}</p>
-                                    </div>
                                 </motion.div>
                             ))}
                         </div>

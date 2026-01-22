@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
         const action = body?.action as string | undefined;
         if (!action) return NextResponse.json({ error: "Missing action" }, { status: 400 });
 
-        const CLOUDFRONT_URL = "https://ds33df8kutjjh.cloudfront.net";
+        const CLOUDFRONT_URL = process.env.AWS_ASSETS_CLOUDFRONT_URL;
 
         // 1. INITIATE MULTIPART UPLOAD
         if (action === "create") {

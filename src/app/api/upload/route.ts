@@ -10,7 +10,7 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.AWS_ASSESTS_S3_BUCKET || 'cyp-website-assets';
-const CLOUDFRONT_URL = 'https://ds33df8kutjjh.cloudfront.net';
+const CLOUDFRONT_URL = process.env.AWS_ASSETS_CLOUDFRONT_URL;
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const uploadType = (formData.get('uploadType') as string) || 'file'; // 'image' | 'file'
     const productId = formData.get('productId') as string | null;
     const imageIndex = formData.get('imageIndex') as string | null;
-    
+
     if (!file) {
       return NextResponse.json(
         { success: false, error: 'No file provided' },
@@ -52,10 +52,10 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 8);
     const ext = file.name.split('.').pop() || 'jpg';
-    
+
     // Determine S3 key based on upload type
     let s3Key: string;
-    
+
     if (productId && imageIndex !== null) {
       // For existing product with specific index
       s3Key = `fundraiser/${productId}/image-${imageIndex}.${ext}`;
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       s3Key,
       isAdminUpload,
     });
-    
+
   } catch (error) {
     console.error('Error uploading file:', error);
     return NextResponse.json(

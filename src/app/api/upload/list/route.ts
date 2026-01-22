@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { s3, ASSETS_S3_BUCKET } from "@/app/lib/s3";
 
-const CLOUDFRONT_URL = "https://ds33df8kutjjh.cloudfront.net";
+const CLOUDFRONT_URL = process.env.AWS_ASSETS_CLOUDFRONT_URL;
 
 export async function GET(req: NextRequest) {
     try {

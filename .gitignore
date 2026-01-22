@@ -46,3 +46,6 @@ next-env.d.ts
 .vercel
 rhine_accessKeys.csv
 .vercel
+
+private_key.pem
+public_key.pem

@@ -14,132 +14,18 @@ import type { FormLayout } from '@/app/types/form';
 import Spinner from './Spinner';
 
 
-// --- Theme Definitions ---
-const themes = {
-  neon: {
-    name: 'Neon Dark',
-    background: '#121212',
-    surface: '#1E1E1E',
-    primary: '#CCFF00',
-    secondary: '#FFFFFF',
-    text: '#A1A1AA',
-    textBright: '#FFFFFF',
-    border: '#CCFF0030',
-    gradient: 'linear-gradient(to right, #CCFF00, #00FF94)',
-  },
-  ember: {
-    name: 'Ember Glow',
-    background: '#18181B',
-    surface: '#27272A',
-    primary: '#F59E0B',
-    secondary: '#EF4444',
-    text: '#FEF3C7',
-    textBright: '#FEF3C7',
-    border: '#F59E0B30',
-    gradient: 'linear-gradient(to right, #F59E0B, #EF4444)',
-  },
-  jungle: {
-    name: 'Deep Jungle',
-    background: '#022C22',
-    surface: '#064E3B',
-    primary: '#2DD4BF',
-    secondary: '#34D399',
-    text: '#ECFDF5',
-    textBright: '#ECFDF5',
-    border: '#2DD4BF30',
-    gradient: 'linear-gradient(to right, #2DD4BF, #34D399)',
-  },
-  espresso: {
-    name: 'Warm Espresso',
-    background: '#1C1917',
-    surface: '#1C1917',
-    primary: '#FB923C',
-    secondary: '#FCD34D',
-    text: '#FAFAFA',
-    textBright: '#FAFAFA',
-    border: '#FB923C30',
-    gradient: 'linear-gradient(to right, #FB923C, #FCD34D)',
-  },
-  slate: {
-    name: 'Deep Slate',
-    background: '#0F172A',
-    surface: '#0F172A',
-    primary: '#38BDF8',
-    secondary: '#C084FC',
-    text: '#F1F5F9',
-    textBright: '#F1F5F9',
-    border: '#38BDF830',
-    gradient: 'linear-gradient(to right, #38BDF8, #C084FC)',
-  },
-  sanctuaryGold: {
-    name: 'Sanctuary Gold ✝️',
-    background: '#1C1917',
-    surface: '#292524',
-    primary: '#D4B996',
-    secondary: '#A8A29E',
-    text: '#F5F5F4',
-    textBright: '#F5F5F4',
-    border: '#D4B99630',
-    gradient: 'linear-gradient(to right, #D4B996, #A8A29E)',
-  },
-  marianSlate: {
-    name: 'Marian Slate 🕊️',
-    background: '#0F172A',
-    surface: '#1E293B',
-    primary: '#7DD3FC',
-    secondary: '#94A3B8',
-    text: '#F1F5F9',
-    textBright: '#F1F5F9',
-    border: '#7DD3FC30',
-    gradient: 'linear-gradient(to right, #7DD3FC, #94A3B8)',
-  },
-  assisiEarth: {
-    name: 'Assisi Earth 🌿',
-    background: '#27201D',
-    surface: '#382E2C',
-    primary: '#E7E5E4',
-    secondary: '#B95C50',
-    text: '#E7E5E4',
-    textBright: '#E7E5E4',
-    border: '#E7E5E430',
-    gradient: 'linear-gradient(to right, #E7E5E4, #B95C50)',
-  },
-  pentecostEmber: {
-    name: 'Pentecost Ember 🔥',
-    background: '#181212',
-    surface: '#2A1E1E',
-    primary: '#CA8A82',
-    secondary: '#E5E5E5',
-    text: '#FADBD8',
-    textBright: '#FADBD8',
-    border: '#CA8A8230',
-    gradient: 'linear-gradient(to right, #CA8A82, #E5E5E5)',
-  },
-  adventPurple: {
-    name: 'Advent Purple 👑',
-    background: '#110E1B',
-    surface: '#1E1B2E',
-    primary: '#A78BFA',
-    secondary: '#F3E8FF',
-    text: '#E9D5FF',
-    textBright: '#E9D5FF',
-    border: '#A78BFA30',
-    gradient: 'linear-gradient(to right, #A78BFA, #F3E8FF)',
-  },
-  ordinaryTime: {
-    name: 'Ordinary Time 🌱',
-    background: '#0F1915',
-    surface: '#1A2E26',
-    primary: '#94B092',
-    secondary: '#D1D5DB',
-    text: '#F0FDF4',
-    textBright: '#F0FDF4',
-    border: '#94B09230',
-    gradient: 'linear-gradient(to right, #94B092, #D1D5DB)',
-  },
+// --- Theme Definition ---
+const theme = {
+  name: 'Warm Espresso',
+  background: '#1C1917',
+  surface: '#1C1917',
+  primary: '#FB923C',
+  secondary: '#FCD34D',
+  text: '#FAFAFA',
+  textBright: '#FAFAFA',
+  border: '#FB923C30',
+  gradient: 'linear-gradient(to right, #FB923C, #FCD34D)',
 };
-
-type ThemeKey = keyof typeof themes;
 
 // --- Data & Constants ---
 const images = [
@@ -156,14 +42,12 @@ const images = [
   { src: '/soprts.jpeg', label: 'Sports' },
 ];
 
-const featuredGalleryImages = [
-  { src: '/camp2025.jpg', label: 'Camp 2025' },
-  { src: '/fellowship.jpeg', label: 'Fellowship' },
-  { src: '/beachfellowship.jpeg', label: 'Beach Fellowship' },
-  { src: '/k24.jpeg', label: 'K24' },
-  { src: '/christmasfellowship.jpeg', label: 'Christmas Fellowship' },
-  { src: '/borivalioutreach.jpeg', label: 'Borivali Outreach' },
-];
+// Video type for homepage clips
+type FeaturedVideo = {
+  src: string;
+  label: string;
+  poster: string;
+};
 
 const verses = [
   { text: "For I know the plans I have for you, declares the Lord", ref: "Jeremiah 29:11" },
@@ -176,7 +60,7 @@ const verses = [
 const faqs = [
   { question: "Who can join CYP?", answer: "Any youth regardless of background is welcome! We typically serve ages 15-35." },
   { question: "Is there a membership fee?", answer: "No, joining our weekly fellowship is completely free." },
-  { question: "Do I need to be Catholic?", answer: "While we are a predominantly a Catholic outreach, we welcome youth from all denominations and backgrounds." },
+  { question: "Do I need to be Catholic?", answer: "While we are predominantly a Catholic outreach, we welcome youth from all denominations and backgrounds." },
   { question: "Where do I start?", answer: "Just show up to our Monday fellowship at 7 PM! No prior registration needed." },
 ];
 
@@ -256,7 +140,7 @@ const AnimatedCounter = ({ value, suffix = "" }: { value: number, suffix?: strin
   );
 };
 
-const AccordionItem = ({ question, answer, theme }: { question: string, answer: string, theme: typeof themes[ThemeKey] }) => {
+const AccordionItem = ({ question, answer }: { question: string, answer: string }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -284,6 +168,66 @@ const AccordionItem = ({ question, answer, theme }: { question: string, answer: 
   );
 };
 
+// Lazy-loading video component with Intersection Observer
+const VideoCard = ({ src, poster, label, className = '' }: { src: string; poster: string; label: string; className?: string }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const isInView = useInView(containerRef, { once: true, margin: '100px' });
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isInView) return;
+
+    // Only load video when in view
+    video.load();
+
+    const handleCanPlay = () => setIsLoaded(true);
+    video.addEventListener('canplaythrough', handleCanPlay);
+
+    return () => video.removeEventListener('canplaythrough', handleCanPlay);
+  }, [isInView]);
+
+  return (
+    <div ref={containerRef} className={`relative overflow-hidden ${className}`}>
+      {/* Poster image shown while loading */}
+      {!isLoaded && (
+        <Image
+          src={poster}
+          alt={label}
+          fill
+          className="object-cover"
+        />
+      )}
+
+      {/* Video element */}
+      {isInView && (
+        <video
+          ref={videoRef}
+          src={src}
+          poster={poster}
+          muted
+          autoPlay
+          loop
+          playsInline
+          preload="metadata"
+          className={`w-full h-full object-cover transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        />
+      )}
+
+      {/* Gradient overlay with label */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+        <p className="text-white font-medium text-sm">{label}</p>
+      </div>
+
+      {/* Play indicator */}
+      <div className="absolute top-3 right-3 p-2 rounded-full backdrop-blur-sm" style={{ backgroundColor: `${theme.primary}40` }}>
+        <FaPlay className="w-3 h-3" style={{ color: theme.textBright }} />
+      </div>
+    </div>
+  );
+};
+
 export default function HomePage() {
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
   const [currentVerseIndex, setCurrentVerseIndex] = React.useState(0);
@@ -292,11 +236,11 @@ export default function HomePage() {
   const [events, setEvents] = React.useState<Event[]>([]);
   const [loadingEvents, setLoadingEvents] = React.useState(true);
   const [randomThumbs, setRandomThumbs] = React.useState<Record<string, string>>({});
+  const [featuredVideos, setFeaturedVideos] = React.useState<FeaturedVideo[]>([]);
+  const [loadingVideos, setLoadingVideos] = React.useState(true);
 
   const { scrollY } = useScroll();
   const heroY = useTransform(scrollY, [0, 500], [0, 150]);
-
-  const theme = themes.espresso;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -304,6 +248,26 @@ export default function HomePage() {
       setCurrentVerseIndex((prev) => (prev + 1) % verses.length);
     }, 6000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch featured videos from S3
+  useEffect(() => {
+    const loadVideos = async () => {
+      try {
+        const res = await fetch('/api/homepage-videos');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.videos && data.videos.length > 0) {
+            setFeaturedVideos(data.videos);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading featured videos:', e);
+      } finally {
+        setLoadingVideos(false);
+      }
+    };
+    loadVideos();
   }, []);
 
   // Data fetching (same as before)
@@ -407,6 +371,11 @@ export default function HomePage() {
 
   return (
     <main className="overflow-x-hidden relative" style={{ backgroundColor: theme.background }}>
+      {/* SEO Description - Hidden text for search engines */}
+      <div className="sr-only" aria-hidden="true">
+        Christian Youth in Power (CYP) Vasai: Empowering young Catholics in Vasai-Virar through faith, community, service, and youth ministry.
+      </div>
+
       {/* Paper Texture Overlay */}
       <div
         className="fixed inset-0 pointer-events-none opacity-[0.03] z-0"
@@ -567,10 +536,10 @@ END:VCALENDAR`;
               <MapPin className="w-6 h-6" style={{ color: theme.secondary }} />
             </div>
             <div>
-              <h3 className="font-bold" style={{ color: theme.textBright }}>Jeevan Darshan Kendra</h3>
-              <Link href="https://maps.app.goo.gl/q2GgBCUyaGfCgj7RA" className="text-sm font-medium flex items-center gap-1 hover:opacity-80 transition-opacity" style={{ color: theme.primary }}>
-                Get Directions <ArrowRight className="w-3 h-3" />
-              </Link>
+              <h3 className="font-bold" style={{ color: theme.textBright }}>Vasai</h3>
+              <p className="text-sm font-medium" style={{ color: theme.text, opacity: 0.7 }}>
+                Maharashtra, India
+              </p>
             </div>
           </div>
         </div>
@@ -596,7 +565,7 @@ END:VCALENDAR`;
           ) : (
             <>
               {/* Mobile: Swipeable Carousel */}
-              <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-8 -mx-4 px-4 sm:hidden no-scrollbar touch-pan-x">
+              <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-8 -mx-4 px-4 sm:hidden no-scrollbar">
                 {events.length > 0 ? events.map((event) => (
                   <div key={event.id} className="min-w-[85vw] snap-center">
                     <Link href={`/events/${event.slug}`} className="block h-full group">
@@ -622,7 +591,7 @@ END:VCALENDAR`;
                           {/* Gradient Overlay */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                         </div>
-                        <CardContent className="p-5 relative">
+                        <CardContent className="p-5 relative pt-6">
                           <h3 className="font-bold text-lg line-clamp-1 mb-2" style={{ color: theme.textBright }}>{event.title}</h3>
                           <p className="text-sm line-clamp-2 mb-4" style={{ color: theme.text, opacity: 0.7 }}>{event.shortDescription || "Join us for this amazing event!"}</p>
                           <div className="flex items-center justify-between">
@@ -666,7 +635,7 @@ END:VCALENDAR`;
                         {/* Gradient Overlay */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                       </div>
-                      <CardContent className="p-6 relative">
+                      <CardContent className="p-6 relative pt-7">
                         <div className="text-xs font-bold mb-2 uppercase tracking-wide" style={{ color: theme.primary }}>
                           {event.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                         </div>
@@ -818,7 +787,7 @@ END:VCALENDAR`;
 
           <div className="rounded-2xl shadow-sm border p-6 md:p-8" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
             {faqs.map((faq, i) => (
-              <AccordionItem key={i} question={faq.question} answer={faq.answer} theme={theme} />
+              <AccordionItem key={i} question={faq.question} answer={faq.answer} />
             ))}
           </div>
         </div>
@@ -834,26 +803,43 @@ END:VCALENDAR`;
             </Link>
           </div>
 
-          {/* Mobile Horizontal Scroll */}
-          <div className="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-6 -mx-4 px-4 sm:hidden no-scrollbar touch-pan-x">
-            {featuredGalleryImages.map((img, i) => (
-              <div key={i} className="min-w-[70vw] aspect-[4/5] snap-center relative rounded-xl overflow-hidden shadow-md">
-                <Image src={img.src} alt={img.label} fill className="object-cover" />
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                  <p className="text-white font-medium text-sm">{img.label}</p>
-                </div>
+          {loadingVideos ? (
+            <div className="flex justify-center py-12">
+              <Spinner label="Loading clips..." />
+            </div>
+          ) : featuredVideos.length === 0 ? (
+            <div className="text-center py-12 rounded-xl" style={{ backgroundColor: `${theme.primary}10`, color: theme.text }}>
+              <p>No video clips yet. Upload videos using the upload script.</p>
+            </div>
+          ) : (
+            <>
+              {/* Mobile Horizontal Scroll - Video Clips */}
+              <div className="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-6 -mx-4 px-4 sm:hidden no-scrollbar">
+                {featuredVideos.map((video, i) => (
+                  <VideoCard
+                    key={i}
+                    src={video.src}
+                    poster={video.poster}
+                    label={video.label}
+                    className="min-w-[70vw] aspect-[4/5] snap-center rounded-xl shadow-md"
+                  />
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Desktop Grid */}
-          <div className="hidden sm:grid grid-cols-3 lg:grid-cols-4 gap-4">
-            {featuredGalleryImages.map((img, i) => (
-              <div key={i} className={`relative rounded-xl overflow-hidden shadow-md aspect-square ${i === 0 ? 'col-span-2 row-span-2' : ''}`}>
-                <Image src={img.src} alt={img.label} fill className="object-cover hover:scale-110 transition-transform duration-500" />
+              {/* Desktop Grid - Video Clips */}
+              <div className="hidden sm:grid grid-cols-3 lg:grid-cols-4 gap-4">
+                {featuredVideos.map((video, i) => (
+                  <VideoCard
+                    key={i}
+                    src={video.src}
+                    poster={video.poster}
+                    label={video.label}
+                    className={`rounded-xl shadow-md aspect-square ${i === 0 ? 'col-span-2 row-span-2' : ''}`}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -880,6 +866,6 @@ END:VCALENDAR`;
           </div>
         </div>
       </section>
-    </main>
+    </main >
   );
 }
