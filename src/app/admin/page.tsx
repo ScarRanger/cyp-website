@@ -76,8 +76,25 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Fundraiser */}
+            {/* CGS Talks */}
             <div className="border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
+              <div className="flex items-center mb-4">
+                <MicIcon className="h-5 w-5 mr-2" style={{ color: theme.primary }} />
+                <h2 className="text-lg font-semibold" style={{ color: theme.text }}>CGS Talks</h2>
+              </div>
+              <p className="opacity-70 mb-4" style={{ color: theme.text }}>Upload CGS talks with summaries.</p>
+              <div className="flex gap-2">
+                <Link href="/admin/cgstalk" className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-md font-medium transition-colors hover:opacity-90" style={{ backgroundColor: theme.primary, color: '#1C1917' }}>
+                  <Plus className="h-4 w-4" /> Upload
+                </Link>
+                <Link href="/cgstalk" className="inline-flex items-center gap-1 px-3 py-2 text-sm rounded-md font-medium transition-colors hover:bg-white/10 border" style={{ borderColor: theme.primary, color: theme.primary }}>
+                  <List className="h-4 w-4" /> View
+                </Link>
+              </div>
+            </div>
+
+            {/* Fundraiser */}
+            {/* <div className="border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
               <div className="flex items-center mb-4">
                 <List className="h-5 w-5 mr-2" style={{ color: theme.primary }} />
                 <h2 className="text-lg font-semibold" style={{ color: theme.text }}>Fundraiser</h2>
@@ -91,7 +108,7 @@ export default function AdminPage() {
                   <List className="h-4 w-4" /> Manage
                 </Link>
               </div>
-            </div>
+            </div> */}
 
             {/* Events */}
             <div className="border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
@@ -111,7 +128,7 @@ export default function AdminPage() {
             </div>
 
             {/* Lottery */}
-            <div className="border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
+            {/* <div className="border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
               <div className="flex items-center mb-4">
                 <Ticket className="h-5 w-5 mr-2" style={{ color: theme.primary }} />
                 <h2 className="text-lg font-semibold" style={{ color: theme.text }}>Lottery</h2>
@@ -122,7 +139,7 @@ export default function AdminPage() {
                   <List className="h-4 w-4" /> Manage Orders
                 </Link>
               </div>
-            </div>
+            </div> */}
 
             {/* Raw Files */}
             <div className="border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow h-full" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>

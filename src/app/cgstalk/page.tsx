@@ -1,9 +1,19 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import FirebasePhoneAuth from "../components/Auth/FirebasePhoneAuth";
-
+import AuthGuard from "@/app/components/Auth/AuthGuard";
 import NoDownload from "../components/NoDownload";
+import Spinner from "../components/Spinner";
+import { Button } from "../components/ui/button";
+
+// Warm Espresso Theme Colors
+const theme = {
+  background: '#1C1917',
+  surface: '#1C1917',
+  primary: '#FB923C',
+  text: '#FAFAFA',
+  border: '#FB923C30',
+};
 
 type Item = { Key: string; Size: number; LastModified?: string };
 
@@ -11,10 +21,8 @@ export default function Page() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    if (!user) return;
     let cancelled = false;
     const load = async () => {
       try {
@@ -39,56 +47,84 @@ export default function Page() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, []);
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
+    const yyyy = d.getFullYear();
+    return `${dd} ${mon} ${yyyy}`;
+  };
 
   return (
-    <NoDownload>
-      <main className="mx-auto max-w-4xl p-4">
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">CGS Talks</h1>
-        </div>
-        {!user && (
-          <div className="mb-8">
-            <FirebasePhoneAuth onSuccess={setUser} />
-          </div>
-        )}
-        {user && (
-          <>
+    <AuthGuard>
+      <NoDownload>
+        <div className="min-h-screen p-4 md:p-6" style={{ backgroundColor: theme.background }}>
+          <main className="mx-auto max-w-4xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h1 className="text-3xl font-bold tracking-tight" style={{ color: theme.text }}>CGS Talks</h1>
+            </div>
+
             {loading && (
-              <div className="text-sm text-slate-700">Loading...</div>
+              <div className="py-16 flex justify-center">
+                <Spinner
+                  label="Loading talks"
+                  trackClassName="border-white/20"
+                  ringClassName="border-t-[#FB923C]"
+                  labelClassName="text-[#FAFAFA]"
+                />
+              </div>
             )}
+
             {error && !loading && (
-              <div className="text-sm text-red-700">{error}</div>
+              <div className="mb-4 rounded border border-red-400 bg-red-900/20 px-3 py-2 text-sm text-red-200">
+                {error}
+              </div>
             )}
+
             {!loading && !error && (
-              <ul className="divide-y rounded-lg border bg-white shadow-sm">
-                {items.map((it) => {
-                  const key = it.Key;
-                  const name = key.split("/").pop() || key;
-                  const href = `/cgstalk/watch/${encodeURIComponent(key).replace(/%2F/g, "/")}`;
-                  const when = it.LastModified ? new Date(it.LastModified).toLocaleString() : "";
-                  return (
-                    <li key={key} className="px-4 py-3 hover:bg-slate-50">
-                      <div className="flex items-center justify-between gap-3">
-                        <a className="min-w-0 no-underline" href={href}>
-                          <div className="truncate text-slate-900 font-medium">{name}</div>
-                          <div className="text-xs text-slate-600 mt-0.5">{when}</div>
-                        </a>
-                        <a
-                          href={href}
-                          className="inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 bg-sky-600 text-white hover:bg-sky-700 focus-visible:ring-sky-400 ring-offset-white h-9 px-3 text-sm"
-                        >
-                          Watch
-                        </a>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="rounded-xl overflow-hidden border" style={{ borderColor: theme.border, backgroundColor: theme.surface }}>
+                <ul className="divide-y" style={{ borderColor: theme.border }}>
+                  {items.map((it) => {
+                    const key = it.Key;
+                    const name = key.split("/").pop() || key;
+                    const displayName = name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+                    const href = `/cgstalk/watch/${encodeURIComponent(key).replace(/%2F/g, "/")}`;
+                    const when = formatDate(it.LastModified);
+
+                    return (
+                      <li
+                        key={key}
+                        className="px-4 py-4 transition-colors hover:bg-white/5"
+                        style={{ borderColor: theme.border }}
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <a
+                            className="min-w-0 no-underline flex-1 cursor-pointer"
+                            href={href}
+                          >
+                            <div className="truncate font-semibold text-lg" style={{ color: theme.text }}>
+                              {displayName || name}
+                            </div>
+                            <div className="text-sm mt-1 opacity-70" style={{ color: theme.text }}>
+                              {when}
+                            </div>
+                          </a>
+                          <Button asChild size="sm" className="shrink-0 font-medium" style={{ backgroundColor: theme.primary, color: '#1C1917' }}>
+                            <a href={href}>Watch</a>
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             )}
-          </>
-        )}
-      </main>
-    </NoDownload>
+          </main>
+        </div>
+      </NoDownload>
+    </AuthGuard>
   );
 }

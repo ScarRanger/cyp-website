@@ -2,10 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import Spinner from '../Spinner';
-// import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, type User } from 'firebase/auth';
 import { auth, db } from '@/app/lib/firebase';
-import { collection, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
+
+// Warm Espresso Theme Colors
+const theme = {
+  background: '#1C1917',
+  surface: '#1C1917',
+  primary: '#FB923C',
+  text: '#FAFAFA',
+  border: '#FB923C30',
+};
 
 // Owner email is hardcoded and always authorized. Do NOT allow this account to be removed via the UI.
 const OWNER_EMAIL = 'rhine.pereira@gmail.com';
@@ -19,34 +27,28 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
-  // const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
 
-      // if no user, not authorized
       if (!user) {
         setIsAuthorized(false);
         setLoading(false);
         return;
       }
 
-      // Async check against Firestore admins collection (owner bypasses this)
       (async () => {
         try {
           if ((user.email || '').toLowerCase() === OWNER_EMAIL.toLowerCase()) {
             setIsAuthorized(true);
           } else {
-            // Check if a document with the user's email exists in the admins collection
-            // We use the email as the document ID for security rules compatibility
             const adminDocRef = doc(db, ADMIN_COLLECTION, user.email || '');
             const adminDoc = await getDoc(adminDocRef);
             const isAdmin = adminDoc.exists();
             setIsAuthorized(isAdmin);
 
             if (!isAdmin) {
-              // Sign out unauthorized users
               await signOut(auth);
               setUser(null);
             }
@@ -73,25 +75,30 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     }
   };
 
-  // sign-out is performed automatically for unauthorized users above
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size={80} ringWidth={6} label="Authenticating" ringClassName="border-t-blue-600" />
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: theme.background }}>
+        <Spinner
+          size={80}
+          ringWidth={6}
+          label="Authenticating"
+          trackClassName="border-white/20"
+          ringClassName="border-t-[#FB923C]"
+          labelClassName="text-[#FAFAFA]"
+        />
       </div>
     );
   }
 
   if (!user || !isAuthorized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full space-y-8 p-8">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: theme.background }}>
+        <div className="max-w-md w-full space-y-8 p-8 rounded-xl border" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
           <div className="text-center">
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+            <h2 className="mt-6 text-3xl font-extrabold" style={{ color: theme.text }}>
               Admin Access Required
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm opacity-70" style={{ color: theme.text }}>
               Please sign in with your authorized Google account
             </p>
           </div>
@@ -99,7 +106,8 @@ export default function AuthGuard({ children }: AuthGuardProps) {
           <div className="mt-8 space-y-6">
             <button
               onClick={handleGoogleSignIn}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md transition-colors hover:opacity-90"
+              style={{ backgroundColor: theme.primary, color: '#1C1917' }}
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -111,7 +119,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
             </button>
 
             <div className="text-center">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs opacity-50" style={{ color: theme.text }}>
                 Only authorized administrators can access this page
               </p>
             </div>
@@ -122,7 +130,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: theme.background }}>
       {children}
     </div>
   );

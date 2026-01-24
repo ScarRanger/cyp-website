@@ -3,6 +3,7 @@ import "./globals.css";
 import Header from "./components/Header";
 import { CartProvider } from "./providers/CartProvider";
 import Script from "next/script";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
@@ -273,6 +274,7 @@ export default function RootLayout({
           {children}
         </CartProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

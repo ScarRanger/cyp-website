@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 
@@ -93,6 +93,33 @@ export default function HistoryPage() {
         fetchGallery();
     }, []);
 
+    const { storyImages, bottomGalleryImages } = useMemo(() => {
+        if (!gallery.length) return { storyImages: [], bottomGalleryImages: [] };
+
+        const camp2025 = gallery.find(p => p.src.toLowerCase().includes('camp2025.jpg'));
+        const excludedTerms = ['recollection.jpeg', 'camp2025.jpg', 'cypmeeting.png'];
+
+        // Filter out excluded images for the first 5 slots
+        const availableForSlots = gallery.filter(p =>
+            !excludedTerms.some(term => p.src.toLowerCase().includes(term))
+        );
+
+        // Take first 5 images for the slots between paragraphs
+        const first5 = availableForSlots.slice(0, 5);
+
+        // Construct the array of images to show in story (indices 0-4 are general, index 5 is camp2025)
+        const sImages: (GalleryPhoto | null)[] = new Array(6).fill(null);
+        first5.forEach((img, i) => sImages[i] = img);
+
+        // The 6th image (index 5) should be camp2025.jpg
+        if (camp2025) sImages[5] = camp2025;
+
+        // Return all images for the bottom gallery instead of filtering used ones
+        const bImages = gallery;
+
+        return { storyImages: sImages, bottomGalleryImages: bImages };
+    }, [gallery]);
+
     return (
         <div className="min-h-screen" style={{ backgroundColor: theme.background }}>
             {/* Hero Section */}
@@ -180,17 +207,34 @@ export default function HistoryPage() {
                         className="space-y-6"
                     >
                         {HISTORY_CONTENT.story.map((paragraph, index) => (
-                            <motion.p
-                                key={index}
-                                className="text-lg leading-relaxed"
-                                style={{ color: theme.textMuted }}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5, delay: index * 0.1 }}
-                                viewport={{ once: true }}
-                            >
-                                {paragraph}
-                            </motion.p>
+                            <React.Fragment key={index}>
+                                <motion.p
+                                    className="text-lg leading-relaxed"
+                                    style={{ color: theme.textMuted }}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                                    viewport={{ once: true }}
+                                >
+                                    {paragraph}
+                                </motion.p>
+                                {storyImages[index] && (
+                                    <motion.div
+                                        className="relative w-full h-64 md:h-96 rounded-xl overflow-hidden my-8"
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        whileInView={{ opacity: 1, scale: 1 }}
+                                        transition={{ duration: 0.6 }}
+                                        viewport={{ once: true }}
+                                    >
+                                        <Image
+                                            src={storyImages[index]!.src}
+                                            alt={storyImages[index]!.caption || "Story Image"}
+                                            fill
+                                            className="object-cover"
+                                        />
+                                    </motion.div>
+                                )}
+                            </React.Fragment>
                         ))}
                     </motion.div>
                 </div>
@@ -290,7 +334,7 @@ export default function HistoryPage() {
             </section>
 
             {/* Photo Gallery Section */}
-            {gallery.length > 0 && (
+            {bottomGalleryImages.length > 0 && (
                 <section className="py-16 md:py-20 px-4">
                     <div className="max-w-6xl mx-auto">
                         <motion.h2
@@ -304,7 +348,7 @@ export default function HistoryPage() {
                         </motion.h2>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {gallery.map((photo: GalleryPhoto, index: number) => (
+                            {bottomGalleryImages.map((photo: GalleryPhoto, index: number) => (
                                 <motion.div
                                     key={index}
                                     className="relative group rounded-2xl overflow-hidden aspect-[4/3]"
