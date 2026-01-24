@@ -17,10 +17,18 @@ const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov'];
 
 export async function GET(request: NextRequest) {
     try {
-        // List all objects in the homepage/videos/ prefix
+        const { searchParams } = new URL(request.url);
+        const type = searchParams.get('type');
+
+        let prefix = 'homepage/videos/';
+        if (type === 'mobile') {
+            prefix = 'homepage/videos/mobile/';
+        }
+
+        // List all objects in the prefix
         const command = new ListObjectsV2Command({
             Bucket: BUCKET_NAME,
-            Prefix: 'homepage/videos/',
+            Prefix: prefix,
         });
 
         const response = await s3Client.send(command);
@@ -30,7 +38,20 @@ export async function GET(request: NextRequest) {
         const videos = contents
             .filter((obj) => {
                 const key = obj.Key || '';
-                return VIDEO_EXTENSIONS.some((ext) => key.toLowerCase().endsWith(ext));
+                // Filter by extension
+                if (!VIDEO_EXTENSIONS.some((ext) => key.toLowerCase().endsWith(ext))) {
+                    return false;
+                }
+
+                // If fetching desktop videos (default prefix), exclude those in 'mobile' or other subdirectories if we want to be strict
+                // The user specifically asked: desktop from 'homepage/videos/' and mobile from 'homepage/videos/mobile/'
+                // 'homepage/videos/mobile/' is a child of 'homepage/videos/'. 
+                // We should prevent desktop fetch from showing mobile videos.
+                if (type !== 'mobile' && key.includes('/mobile/')) {
+                    return false;
+                }
+
+                return true;
             })
             .map((obj) => {
                 const key = obj.Key || '';

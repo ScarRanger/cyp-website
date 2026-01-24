@@ -28,26 +28,30 @@ const theme = {
 };
 
 // --- Data & Constants ---
-const images = [
-  { src: '/bangloreputreach.jpeg', label: 'Bangalore Outreach' },
-  { src: '/beachfellowship.jpeg', label: 'Beach Fellowship' },
-  { src: '/borivalioutreach.jpeg', label: 'Borivali Outreach' },
-  { src: '/camp2025.jpg', label: 'Camp 2025' },
-  { src: '/christmasfellowship.jpeg', label: 'Christmas Fellowship' },
-  { src: '/feb_recollection.jpeg', label: 'February Recollection' },
-  { src: '/fellowship.jpeg', label: 'Fellowship' },
-  { src: '/k24.jpeg', label: 'K24' },
-  { src: '/nvrecollec.jpeg', label: 'NV Recollection' },
-  { src: '/orpahnagenv.jpeg', label: 'Orphanage NV' },
-  { src: '/soprts.jpeg', label: 'Sports' },
-];
 
-// Video type for homepage clips
-type FeaturedVideo = {
+// Hero video type from S3
+type HeroVideo = {
   src: string;
   label: string;
-  poster: string;
+  poster?: string;
 };
+
+// Gallery images for "Captured Moments" section
+const featuredGalleryImages = [
+  { src: '/camp2025.jpg', label: 'Camp 2025' },
+  { src: '/fellowship.jpeg', label: 'Fellowship' },
+  { src: '/beachfellowship.jpeg', label: 'Beach Fellowship' },
+  { src: '/k24.jpeg', label: 'K24' },
+  { src: '/christmasfellowship.jpeg', label: 'Christmas Fellowship' },
+  { src: '/borivalioutreach.jpeg', label: 'Borivali Outreach' },
+];
+
+// Fallback images for hero (used when no videos are available)
+const fallbackHeroImages = [
+  { src: '/camp2025.jpg', label: 'Camp 2025' },
+  { src: '/fellowship.jpeg', label: 'Fellowship' },
+  { src: '/beachfellowship.jpeg', label: 'Beach Fellowship' },
+];
 
 const verses = [
   { text: "For I know the plans I have for you, declares the Lord", ref: "Jeremiah 29:11" },
@@ -229,46 +233,53 @@ const VideoCard = ({ src, poster, label, className = '' }: { src: string; poster
 };
 
 export default function HomePage() {
-  const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
+  const [currentHeroIndex, setCurrentHeroIndex] = React.useState(0);
   const [currentVerseIndex, setCurrentVerseIndex] = React.useState(0);
   const [promoted, setPromoted] = React.useState<FormLayout[]>([]);
   const [loadingPromoted, setLoadingPromoted] = React.useState(true);
   const [events, setEvents] = React.useState<Event[]>([]);
   const [loadingEvents, setLoadingEvents] = React.useState(true);
   const [randomThumbs, setRandomThumbs] = React.useState<Record<string, string>>({});
-  const [featuredVideos, setFeaturedVideos] = React.useState<FeaturedVideo[]>([]);
-  const [loadingVideos, setLoadingVideos] = React.useState(true);
+  const [heroVideos, setHeroVideos] = React.useState<HeroVideo[]>([]);
+  const [loadingHeroVideos, setLoadingHeroVideos] = React.useState(true);
 
   const { scrollY } = useScroll();
   const heroY = useTransform(scrollY, [0, 500], [0, 150]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % images.length);
-      setCurrentVerseIndex((prev) => (prev + 1) % verses.length);
-    }, 6000);
-    return () => clearInterval(timer);
-  }, []);
+  // Determine what to show in hero: videos from S3 or fallback images
+  const heroItems = heroVideos.length > 0 ? heroVideos : fallbackHeroImages;
+  const isVideoHero = heroVideos.length > 0;
 
-  // Fetch featured videos from S3
+  // Fetch hero videos from S3
   useEffect(() => {
     const loadVideos = async () => {
       try {
-        const res = await fetch('/api/homepage-videos');
+        const isMobile = window.innerWidth < 640;
+        const type = isMobile ? 'mobile' : 'desktop';
+        const res = await fetch(`/api/homepage-videos?type=${type}`);
         if (res.ok) {
           const data = await res.json();
           if (data.videos && data.videos.length > 0) {
-            setFeaturedVideos(data.videos);
+            setHeroVideos(data.videos);
           }
         }
       } catch (e) {
-        console.error('Error loading featured videos:', e);
+        console.error('Error loading hero videos:', e);
       } finally {
-        setLoadingVideos(false);
+        setLoadingHeroVideos(false);
       }
     };
     loadVideos();
   }, []);
+
+  // Cycle through hero items and verses
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentHeroIndex((prev) => (prev + 1) % heroItems.length);
+      setCurrentVerseIndex((prev) => (prev + 1) % verses.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [heroItems.length]);
 
   // Data fetching (same as before)
   useEffect(() => {
@@ -385,30 +396,43 @@ export default function HomePage() {
         }}
       />
 
-      {/* 1. HERO SECTION (Optimized for Mobile) */}
+      {/* 1. HERO SECTION (Optimized for Mobile) - Now with Video Support */}
       <section className="relative h-[92vh] sm:h-screen w-full overflow-hidden flex items-center justify-center z-10">
-        <motion.div style={{ y: heroY }} className="absolute inset-0 w-full h-[120%] -top-[10%]">
+        <div className="absolute inset-0 w-full h-full">
           <AnimatePresence mode="popLayout">
             <motion.div
-              key={currentImageIndex}
-              initial={{ opacity: 0, scale: 1.15 }}
+              key={currentHeroIndex}
+              initial={{ opacity: 0, scale: 1.1 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 1.5, ease: "easeOut" }}
               className="absolute inset-0"
+              style={{ willChange: "transform" }}
             >
-              <Image
-                src={images[currentImageIndex].src}
-                alt="Background"
-                fill
-                className="object-cover"
-                priority
-                quality={85}
-              />
+              {isVideoHero ? (
+                <video
+                  src={heroItems[currentHeroIndex].src}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover"
+                  style={{ backfaceVisibility: "hidden", transform: "translateZ(0)" }}
+                />
+              ) : (
+                <Image
+                  src={heroItems[currentHeroIndex].src}
+                  alt="Background"
+                  fill
+                  className="object-cover"
+                  priority
+                  quality={85}
+                />
+              )}
               <div className="absolute inset-0 bg-gradient-to-b" style={{ background: `linear-gradient(to bottom, ${theme.background}B3, ${theme.background}4D, ${theme.background}E6)` }} />
             </motion.div>
           </AnimatePresence>
-        </motion.div>
+        </div>
 
         <div className="relative z-10 container mx-auto px-6 text-center flex flex-col justify-end pb-24 sm:justify-center sm:pb-0 h-full">
           <motion.div
@@ -803,43 +827,45 @@ END:VCALENDAR`;
             </Link>
           </div>
 
-          {loadingVideos ? (
-            <div className="flex justify-center py-12">
-              <Spinner label="Loading clips..." />
-            </div>
-          ) : featuredVideos.length === 0 ? (
-            <div className="text-center py-12 rounded-xl" style={{ backgroundColor: `${theme.primary}10`, color: theme.text }}>
-              <p>No video clips yet. Upload videos using the upload script.</p>
-            </div>
-          ) : (
-            <>
-              {/* Mobile Horizontal Scroll - Video Clips */}
-              <div className="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-6 -mx-4 px-4 sm:hidden no-scrollbar">
-                {featuredVideos.map((video, i) => (
-                  <VideoCard
-                    key={i}
-                    src={video.src}
-                    poster={video.poster}
-                    label={video.label}
-                    className="min-w-[70vw] aspect-[4/5] snap-center rounded-xl shadow-md"
-                  />
-                ))}
+          {/* Mobile Horizontal Scroll - Gallery Images */}
+          <div className="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-6 -mx-4 px-4 sm:hidden no-scrollbar">
+            {featuredGalleryImages.map((img, i) => (
+              <div
+                key={i}
+                className="min-w-[70vw] aspect-[4/5] snap-center rounded-xl shadow-md relative overflow-hidden"
+              >
+                <Image
+                  src={img.src}
+                  alt={img.label}
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                  <p className="text-white font-medium text-sm">{img.label}</p>
+                </div>
               </div>
+            ))}
+          </div>
 
-              {/* Desktop Grid - Video Clips */}
-              <div className="hidden sm:grid grid-cols-3 lg:grid-cols-4 gap-4">
-                {featuredVideos.map((video, i) => (
-                  <VideoCard
-                    key={i}
-                    src={video.src}
-                    poster={video.poster}
-                    label={video.label}
-                    className={`rounded-xl shadow-md aspect-square ${i === 0 ? 'col-span-2 row-span-2' : ''}`}
-                  />
-                ))}
+          {/* Desktop Grid - Gallery Images */}
+          <div className="hidden sm:grid grid-cols-3 lg:grid-cols-4 gap-4">
+            {featuredGalleryImages.map((img, i) => (
+              <div
+                key={i}
+                className={`rounded-xl shadow-md relative overflow-hidden ${i === 0 ? 'col-span-2 row-span-2 aspect-square' : 'aspect-square'}`}
+              >
+                <Image
+                  src={img.src}
+                  alt={img.label}
+                  fill
+                  className="object-cover hover:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                  <p className="text-white font-medium text-sm">{img.label}</p>
+                </div>
               </div>
-            </>
-          )}
+            ))}
+          </div>
         </div>
       </section>
 
