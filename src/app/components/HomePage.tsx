@@ -397,11 +397,27 @@ export default function HomePage() {
               </h1>
             </motion.div>
 
-            <motion.div variants={fadeInUp} className="max-w-xl mx-auto">
+            <motion.div variants={fadeInUp} className="max-w-xl mx-auto text-center">
               <p className="text-base sm:text-xl font-light drop-shadow-md px-4" style={{ color: theme.text }}>
-                Empowering the next generation for Christ. <br className="hidden sm:block" />
-                A Youth Outreach of Good Shepherd Community.
+                Empowering the next generation for Christ.
               </p>
+              <p className="mt-3 text-base sm:text-lg font-medium" style={{ color: theme.textBright }}>
+                A Youth Outreach of
+              </p>
+              <div className="mt-2 flex justify-center">
+                <p
+                  className="inline-block text-sm sm:text-lg md:text-xl lg:text-2xl font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-full backdrop-blur-md tracking-wide text-center whitespace-nowrap"
+                  style={{
+                    background: `linear-gradient(135deg, ${theme.primary}30, ${theme.secondary}30)`,
+                    border: `1px solid ${theme.primary}50`,
+                    color: theme.secondary,
+                    textTransform: 'uppercase',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                  }}
+                >
+                  Community of the Good Shepherd
+                </p>
+              </div>
             </motion.div>
 
             <motion.div variants={fadeInUp} className="w-full max-w-lg mt-2">

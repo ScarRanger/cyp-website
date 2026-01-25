@@ -1,5 +1,6 @@
 import TalkPlayer from "../../../components/TalkPlayer";
 import TalkShareButton from '@/app/components/TalkShareButton';
+import ViewCounter from '@/app/components/ViewCounter';
 import { GetObjectCommand, ListObjectsV2Command, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { s3, TALKS_S3_BUCKET } from "@/app/lib/s3";
 import { redirect } from 'next/navigation';
@@ -209,7 +210,8 @@ export default async function Page({ params }: { params: Promise<{ key: string[]
             <TalkShareButton title={title} />
           </div>
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-6 break-words" style={{ color: theme.text }}>{title}</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2 break-words" style={{ color: theme.text }}>{title}</h1>
+        <ViewCounter talkKey={key} className="mb-6" />
         {/* Video object key removed from public view for privacy/security */}
         <div className="rounded-xl overflow-hidden shadow-2xl border" style={{ borderColor: theme.border, backgroundColor: '#000' }}>
           <TalkPlayer className="w-full aspect-video" objectKey={key} autoPlay={false} />

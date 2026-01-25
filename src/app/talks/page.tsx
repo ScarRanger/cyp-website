@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Music, Video as VideoIcon } from "lucide-react";
+import { Eye, Music, Video as VideoIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
 import Spinner from "../components/Spinner";
 
@@ -37,6 +37,7 @@ export default function Talks() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [selected, setSelected] = useState<TalkItem | undefined>(undefined);
+  const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
 
   const hasMore = useMemo(() => Boolean(cursor), [cursor]);
 
@@ -52,6 +53,18 @@ export default function Talks() {
         if (ignore) return;
         setItems(prev => (initial ? data.items : [...prev, ...data.items]));
         setCursor(data.nextCursor);
+
+        // Fetch view counts for the loaded items
+        const keys = data.items.map((it: TalkItem) => it.key || it.id).join(",");
+        if (keys) {
+          try {
+            const viewRes = await fetch(`/api/talks/views?keys=${encodeURIComponent(keys)}`);
+            if (viewRes.ok) {
+              const viewData = await viewRes.json();
+              setViewCounts(prev => ({ ...prev, ...viewData.viewCounts }));
+            }
+          } catch { }
+        }
       } catch {
         if (!ignore) setError("Failed to load talks");
       } finally {
@@ -74,6 +87,18 @@ export default function Talks() {
       const data: TalksResponse = await res.json();
       setItems(prev => [...prev, ...data.items]);
       setCursor(data.nextCursor);
+
+      // Fetch view counts for the newly loaded items
+      const keys = data.items.map((it: TalkItem) => it.key || it.id).join(",");
+      if (keys) {
+        try {
+          const viewRes = await fetch(`/api/talks/views?keys=${encodeURIComponent(keys)}`);
+          if (viewRes.ok) {
+            const viewData = await viewRes.json();
+            setViewCounts(prev => ({ ...prev, ...viewData.viewCounts }));
+          }
+        } catch { }
+      }
     } catch {
       setError("Failed to load more talks");
     } finally {
@@ -162,6 +187,15 @@ export default function Talks() {
                             <span>
                               {(() => { const d = it.date ? new Date(it.date) : new Date(it.createdAt); const dd = String(d.getDate()).padStart(2, '0'); const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]; const yyyy = d.getFullYear(); return `${dd} ${mon} ${yyyy}`; })()}
                             </span>
+                            {viewCounts[key] > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="flex items-center gap-1">
+                                  <Eye className="h-3 w-3" />
+                                  {viewCounts[key].toLocaleString()}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
