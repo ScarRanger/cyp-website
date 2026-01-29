@@ -1,13 +1,6 @@
 import { sendEmailWithAttachmentsViaSES } from './ses';
 import type { QRPayload } from '@/app/types/concert';
 
-const POSTMARK_API_KEY = process.env.POSTMARK_API_KEY;
-const POSTMARK_FROM_EMAIL = process.env.POSTMARK_FROM_EMAIL || 'tickets@cypvasai.org';
-const POSTMARK_API_URL = 'https://api.postmarkapp.com/email';
-
-// Email provider selection: 'postmark' | 'ses'
-const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || 'postmark';
-
 export interface EmailAttachment {
   Name: string;
   Content: string; // base64 encoded
@@ -30,65 +23,20 @@ interface EmailResponse {
 }
 
 /**
- * Send an email using the configured provider (Postmark or SES)
+ * Send an email using AWS SES
  */
 export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
-  if (EMAIL_PROVIDER === 'ses') {
-    const result = await sendEmailWithAttachmentsViaSES({
-      to: options.to,
-      subject: options.subject,
-      htmlBody: options.htmlBody,
-      textBody: options.textBody,
-      attachments: options.attachments,
-    });
-    return {
-      success: result.success,
-      messageId: result.messageId,
-      provider: 'ses',
-    };
-  }
-
-  // Default: Postmark
-  return sendEmailViaPostmark(options);
-}
-
-/**
- * Send email via Postmark API
- */
-async function sendEmailViaPostmark(options: EmailOptions): Promise<EmailResponse> {
-  if (!POSTMARK_API_KEY) {
-    throw new Error('POSTMARK_API_KEY is not configured');
-  }
-
-  const response = await fetch(POSTMARK_API_URL, {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'X-Postmark-Server-Token': POSTMARK_API_KEY,
-    },
-    body: JSON.stringify({
-      From: POSTMARK_FROM_EMAIL,
-      To: options.to,
-      Subject: options.subject,
-      HtmlBody: options.htmlBody,
-      TextBody: options.textBody || stripHtml(options.htmlBody),
-      Tag: options.tag || 'concert-ticket',
-      MessageStream: 'outbound',
-      Attachments: options.attachments,
-    }),
+  const result = await sendEmailWithAttachmentsViaSES({
+    to: options.to,
+    subject: options.subject,
+    htmlBody: options.htmlBody,
+    textBody: options.textBody,
+    attachments: options.attachments,
   });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`Postmark error: ${errorData.Message || response.statusText}`);
-  }
-
-  const data = await response.json();
   return {
-    success: true,
-    messageId: data.MessageID,
-    provider: 'postmark',
+    success: result.success,
+    messageId: result.messageId,
+    provider: 'ses',
   };
 }
 

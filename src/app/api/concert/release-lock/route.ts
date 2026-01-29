@@ -1,96 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/app/lib/supabase';
+import { releaseTickets, deleteReservation } from '@/app/lib/concert-redis';
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { lockId, sessionId, tier } = body;
+        const { checkoutId } = body;
 
-        if (!sessionId) {
+        if (!checkoutId) {
             return NextResponse.json(
-                { error: 'Missing sessionId' },
+                { error: 'Missing checkoutId' },
                 { status: 400 }
             );
         }
 
         const supabase = createServerSupabaseClient();
 
-        // Find and delete the lock(s) for this session
-        let query = supabase
-            .from('concert_soft_locks')
-            .select('*')
-            .eq('session_id', sessionId);
+        // Get the pending order
+        const { data: order, error: orderError } = await supabase
+            .from('concert_orders')
+            .select('tier, quantity, status')
+            .eq('checkout_id', checkoutId)
+            .single();
 
-        if (lockId) {
-            query = query.eq('id', lockId);
-        }
-        if (tier) {
-            query = query.eq('tier', tier);
-        }
-
-        const { data: locks, error: fetchError } = await query;
-
-        if (fetchError) throw fetchError;
-
-        if (!locks || locks.length === 0) {
+        if (orderError || !order) {
+            // If order doesn't exist, try to clean up Redis anyway
+            await deleteReservation(checkoutId);
             return NextResponse.json({
                 success: true,
-                message: 'No locks found to release',
+                message: 'Reservation not found or already released',
             });
         }
 
-        // Group quantities by tier
-        const tierQuantities: Record<string, number> = {};
-        for (const lock of locks) {
-            tierQuantities[lock.tier] = (tierQuantities[lock.tier] || 0) + lock.quantity;
+        // Only release if still pending
+        if (order.status === 'pending') {
+            // Release tickets back to Redis
+            const newCount = await releaseTickets(order.tier, order.quantity);
+
+            // Update order status to cancelled
+            await supabase
+                .from('concert_orders')
+                .update({
+                    status: 'cancelled',
+                    expired_at: new Date().toISOString(),
+                })
+                .eq('checkout_id', checkoutId);
+
+            // Clean up Redis reservation
+            await deleteReservation(checkoutId);
+
+            console.log(`[ReleaseLock] Released ${order.quantity} ${order.tier} tickets. New available: ${newCount}`);
+
+            return NextResponse.json({
+                success: true,
+                message: `Released ${order.quantity} ${order.tier} ticket(s)`,
+                newAvailable: newCount,
+            });
         }
 
-        // Delete the locks
-        let deleteQuery = supabase
-            .from('concert_soft_locks')
-            .delete()
-            .eq('session_id', sessionId);
-
-        if (lockId) {
-            deleteQuery = deleteQuery.eq('id', lockId);
-        }
-        if (tier) {
-            deleteQuery = deleteQuery.eq('tier', tier);
-        }
-
-        const { error: deleteError } = await deleteQuery;
-
-        if (deleteError) throw deleteError;
-
-        // Decrement soft_locked counts for each tier
-        for (const [tierName, quantity] of Object.entries(tierQuantities)) {
-            const { data: tierData } = await supabase
-                .from('concert_ticket_inventory')
-                .select('soft_locked')
-                .eq('tier', tierName)
-                .single();
-
-            if (tierData) {
-                await supabase
-                    .from('concert_ticket_inventory')
-                    .update({
-                        soft_locked: Math.max(0, tierData.soft_locked - quantity),
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('tier', tierName);
-            }
-        }
-
-        const totalReleased = locks.reduce((sum, lock) => sum + lock.quantity, 0);
+        // Already paid or expired
+        await deleteReservation(checkoutId);
 
         return NextResponse.json({
             success: true,
-            message: `Released ${totalReleased} ticket(s)`,
-            released: totalReleased,
+            message: `Order already ${order.status}`,
         });
 
     } catch (error) {
-        console.error('Error releasing lock:', error);
+        console.error('[ReleaseLock] Error:', error);
         return NextResponse.json(
             { error: 'Failed to release lock' },
             { status: 500 }

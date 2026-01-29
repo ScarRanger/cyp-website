@@ -3,59 +3,101 @@ import { createServerSupabaseClient } from '@/app/lib/supabase';
 import { createQRPayload } from '@/app/lib/qr-signature';
 import { scheduleTicketEmail, isQStashConfigured } from '@/app/lib/qstash';
 import { sendTicketEmail, type TicketInfo } from '@/app/lib/email-service';
+import { deleteReservation } from '@/app/lib/concert-redis';
+import { orderRatelimit, getClientIP } from '@/app/lib/concert-ratelimit';
 import type { TicketMetadata } from '@/app/types/concert';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import QRCode from 'qrcode';
 
 export async function POST(request: NextRequest) {
     try {
+        const clientIP = getClientIP(request);
+
+        // Rate limit check
+        const rateLimitResult = await orderRatelimit.limit(clientIP);
+        if (!rateLimitResult.success) {
+            return NextResponse.json(
+                {
+                    error: 'Too many orders. Please wait before trying again.',
+                    retryAfter: Math.ceil((rateLimitResult.reset - Date.now()) / 1000),
+                },
+                { status: 429 }
+            );
+        }
+
         const body = await request.json();
-        const { tier, quantity, name, email, phone } = body;
+        const { checkoutId, name, email, phone } = body;
 
         // Validate required fields
-        if (!tier || !quantity || !name || !email || !phone) {
+        if (!checkoutId || !name || !email || !phone) {
             return NextResponse.json(
-                { error: 'Missing required fields' },
+                { error: 'Missing required fields (checkoutId, name, email, phone)' },
                 { status: 400 }
             );
         }
 
         const supabase = createServerSupabaseClient();
 
-        // Get tier info and check availability
-        const { data: tierData, error: tierError } = await supabase
-            .from('concert_ticket_inventory')
+        // Get the pending order by checkout_id
+        const { data: order, error: orderError } = await supabase
+            .from('concert_orders')
             .select('*')
-            .eq('tier', tier)
+            .eq('checkout_id', checkoutId)
             .single();
 
-        if (tierError || !tierData) {
+        if (orderError || !order) {
             return NextResponse.json(
-                { error: 'Tier not found' },
+                { error: 'Order not found. Your reservation may have expired.' },
                 { status: 404 }
             );
         }
 
-        // Check availability
-        const available = tierData.total_tickets - tierData.sold_tickets;
-
-        if (available < quantity) {
+        // Check if order is still pending
+        if (order.status !== 'pending') {
+            if (order.status === 'paid') {
+                return NextResponse.json(
+                    { error: 'This order has already been completed.' },
+                    { status: 400 }
+                );
+            }
+            if (order.status === 'expired') {
+                return NextResponse.json(
+                    { error: 'Your reservation has expired. Please start over.' },
+                    { status: 400 }
+                );
+            }
             return NextResponse.json(
-                { error: `Only ${available} tickets available in ${tier} tier` },
+                { error: `Invalid order status: ${order.status}` },
                 { status: 400 }
             );
         }
 
-        // Generate order ID
+        // Check if reservation hasn't expired
+        if (order.expires_at && new Date(order.expires_at) < new Date()) {
+            return NextResponse.json(
+                { error: 'Your reservation has expired. Please start over.' },
+                { status: 400 }
+            );
+        }
+
+        const { tier, quantity } = order;
         const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const purchaseDate = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+        // Get tier metadata (price) from Supabase
+        const { data: tierData } = await supabase
+            .from('concert_ticket_inventory')
+            .select('price')
+            .eq('tier', tier)
+            .single();
+
+        const price = tierData?.price || 0;
 
         // Create tickets and collect ticket info for email
         const tickets = [];
         const ticketInfos: TicketInfo[] = [];
 
         for (let i = 0; i < quantity; i++) {
-            // Create QR payload for this ticket
             const ticketId = crypto.randomUUID();
             const qrPayload = createQRPayload(ticketId, name, tier);
 
@@ -106,7 +148,6 @@ export async function POST(request: NextRequest) {
             const pdfBase64 = await generateTicketPDF(ticketData);
             const fileName = `CYP-Concert-Ticket-${tier}-${ticketId.substring(0, 8)}.pdf`;
 
-            // Collect ticket info for consolidated email
             ticketInfos.push({
                 ticketId,
                 tier,
@@ -116,21 +157,29 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Update inventory: increment sold count
-        await supabase
-            .from('concert_ticket_inventory')
-            .update({
-                sold_tickets: tierData.sold_tickets + quantity,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('tier', tier);
+        // Update inventory: increment sold count in Supabase (Redis already decremented)
+        await supabase.rpc('increment_sold_tickets', { tier_name: tier, count: quantity });
 
-        // Send consolidated email with all ticket PDFs
-        // Use QStash if configured (async), otherwise send directly
+        // Update order status to PAID
+        await supabase
+            .from('concert_orders')
+            .update({
+                status: 'paid',
+                paid_at: new Date().toISOString(),
+                name,
+                email,
+                phone,
+                payment_amount: price * quantity,
+            })
+            .eq('checkout_id', checkoutId);
+
+        // Delete reservation from Redis (it's now permanent)
+        await deleteReservation(checkoutId);
+
+        // Send email
         let emailStatus = 'pending';
 
         if (isQStashConfigured()) {
-            // Schedule email via QStash (returns immediately)
             try {
                 const result = await scheduleTicketEmail({
                     buyerEmail: email,
@@ -138,16 +187,14 @@ export async function POST(request: NextRequest) {
                     purchaseDate,
                     tickets: ticketInfos,
                 });
-                console.log(`Email scheduled via QStash, messageId: ${result.messageId}`);
+                console.log(`[Order] Email scheduled via QStash, messageId: ${result.messageId}`);
                 emailStatus = 'scheduled';
             } catch (qstashError) {
-                console.error('QStash scheduling failed, falling back to direct send:', qstashError);
-                // Fallback to direct send
+                console.error('[Order] QStash scheduling failed, falling back to direct send:', qstashError);
                 await sendTicketEmail(email, name, purchaseDate, ticketInfos);
                 emailStatus = 'sent';
             }
         } else {
-            // No QStash configured, send directly
             await sendTicketEmail(email, name, purchaseDate, ticketInfos);
             emailStatus = 'sent';
         }
@@ -156,6 +203,7 @@ export async function POST(request: NextRequest) {
             success: true,
             message: `Successfully purchased ${quantity} ${tier} ticket(s)! Check your email for the tickets.`,
             orderId,
+            checkoutId,
             emailStatus,
             tickets: tickets.map(t => ({
                 id: t.id,
@@ -165,7 +213,7 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error('Error processing order:', error);
+        console.error('[Order] Error processing order:', error);
         return NextResponse.json(
             { error: 'Failed to process order' },
             { status: 500 }
@@ -197,22 +245,18 @@ interface TicketData {
 }
 
 async function generateTicketPDF(data: TicketData): Promise<string> {
-    // Create a new PDF document
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([400, 600]);
 
-    // Embed fonts
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    // Colors
     const primaryColor = rgb(0.91, 0.27, 0.38);
     const textColor = rgb(0.1, 0.1, 0.1);
     const mutedColor = rgb(0.4, 0.4, 0.4);
 
     const { width, height } = page.getSize();
 
-    // Draw header background
     page.drawRectangle({
         x: 0,
         y: height - 100,
@@ -221,7 +265,6 @@ async function generateTicketPDF(data: TicketData): Promise<string> {
         color: primaryColor,
     });
 
-    // Header text
     page.drawText('CYP CONCERT 2026', {
         x: 50,
         y: height - 50,
@@ -238,7 +281,6 @@ async function generateTicketPDF(data: TicketData): Promise<string> {
         color: rgb(1, 1, 1),
     });
 
-    // Tier badge
     const tierY = height - 140;
     page.drawRectangle({
         x: 130,
@@ -256,23 +298,17 @@ async function generateTicketPDF(data: TicketData): Promise<string> {
         color: rgb(1, 1, 1),
     });
 
-    // Generate QR Code
     const qrDataString = JSON.stringify(data.qrData);
     const qrCodeDataUrl = await QRCode.toDataURL(qrDataString, {
         width: 150,
         margin: 1,
-        color: {
-            dark: '#000000',
-            light: '#ffffff',
-        },
+        color: { dark: '#000000', light: '#ffffff' },
     });
 
-    // Convert data URL to bytes
     const qrCodeBase64 = qrCodeDataUrl.split(',')[1];
     const qrCodeBytes = Buffer.from(qrCodeBase64, 'base64');
     const qrImage = await pdfDoc.embedPng(qrCodeBytes);
 
-    // Draw QR code with white background
     const qrSize = 130;
     const qrX = (width - qrSize) / 2;
     const qrY = height - 310;
@@ -292,9 +328,7 @@ async function generateTicketPDF(data: TicketData): Promise<string> {
         height: qrSize,
     });
 
-    // Ticket ID
-    const ticketIdText = `Ticket ID: ${data.ticketId.substring(0, 8)}...`;
-    page.drawText(ticketIdText, {
+    page.drawText(`Ticket ID: ${data.ticketId.substring(0, 8)}...`, {
         x: 130,
         y: qrY - 25,
         size: 9,
@@ -302,7 +336,6 @@ async function generateTicketPDF(data: TicketData): Promise<string> {
         color: mutedColor,
     });
 
-    // Divider line
     page.drawLine({
         start: { x: 30, y: qrY - 45 },
         end: { x: width - 30, y: qrY - 45 },
@@ -311,7 +344,6 @@ async function generateTicketPDF(data: TicketData): Promise<string> {
         dashArray: [5, 3],
     });
 
-    // Event details
     const detailsY = qrY - 75;
     const labelX = 50;
     const textX = 100;
@@ -325,7 +357,6 @@ async function generateTicketPDF(data: TicketData): Promise<string> {
     page.drawText('Venue:', { x: labelX, y: detailsY - 44, size: 10, font: boldFont, color: mutedColor });
     page.drawText(data.eventDetails.venue, { x: textX, y: detailsY - 44, size: 11, font: regularFont, color: textColor });
 
-    // Buyer info box
     const buyerBoxY = detailsY - 100;
     page.drawRectangle({
         x: 30,
@@ -340,7 +371,6 @@ async function generateTicketPDF(data: TicketData): Promise<string> {
     page.drawText(`Email: ${data.buyerEmail}`, { x: 45, y: buyerBoxY - 33, size: 10, font: regularFont, color: textColor });
     page.drawText(`Phone: ${data.buyerPhone}`, { x: 45, y: buyerBoxY - 48, size: 10, font: regularFont, color: textColor });
 
-    // Footer
     page.drawText(`Order: ${data.orderId}`, {
         x: 50,
         y: 35,
@@ -357,7 +387,6 @@ async function generateTicketPDF(data: TicketData): Promise<string> {
         color: mutedColor,
     });
 
-    // Save PDF and return as base64
     const pdfBytes = await pdfDoc.save();
     return Buffer.from(pdfBytes).toString('base64');
 }

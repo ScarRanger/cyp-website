@@ -1,7 +1,7 @@
 import { SESClient, SendEmailCommand, SendRawEmailCommand } from '@aws-sdk/client-ses';
 
 const AWS_SES_REGION = process.env.AWS_SES_REGION || process.env.AWS_REGION || 'ap-south-1';
-const AWS_SES_FROM_EMAIL = process.env.AWS_SES_FROM_EMAIL || 'tickets@cypvasai.org';
+const AWS_SES_FROM_EMAIL = process.env.AWS_SES_FROM_EMAIL || 'CYP Vasai <tickets@concert.cypvasai.org>';
 
 // Create SES client (uses AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from env)
 const sesClient = new SESClient({

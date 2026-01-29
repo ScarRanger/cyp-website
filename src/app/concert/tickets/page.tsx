@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import type { TierAvailability } from "@/app/types/concert";
@@ -25,7 +25,23 @@ interface SelectedTier {
     price: number;
 }
 
+interface ReservationData {
+    checkoutId: string;
+    expiresAt: string;
+    tier: string;
+    quantity: number;
+}
 
+// Generate a unique session ID
+function getSessionId(): string {
+    if (typeof window === 'undefined') return '';
+    let sessionId = sessionStorage.getItem('concert_session_id');
+    if (!sessionId) {
+        sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        sessionStorage.setItem('concert_session_id', sessionId);
+    }
+    return sessionId;
+}
 
 export default function TicketingPage() {
     const [tiers, setTiers] = useState<TierAvailability[]>([]);
@@ -40,6 +56,12 @@ export default function TicketingPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitMessage, setSubmitMessage] = useState('');
     const [submitSuccess, setSubmitSuccess] = useState(false);
+
+    // Reservation state
+    const [reservation, setReservation] = useState<ReservationData | null>(null);
+    const [timeRemaining, setTimeRemaining] = useState<number>(0);
+    const [isReserving, setIsReserving] = useState(false);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Fetch tiers
     const fetchTiers = useCallback(async () => {
@@ -61,6 +83,43 @@ export default function TicketingPage() {
         const interval = setInterval(fetchTiers, 30000);
         return () => clearInterval(interval);
     }, [fetchTiers]);
+
+    // Countdown timer for reservation
+    useEffect(() => {
+        if (!reservation) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            setTimeRemaining(0);
+            return;
+        }
+
+        const updateTimer = () => {
+            const now = new Date().getTime();
+            const expiry = new Date(reservation.expiresAt).getTime();
+            const remaining = Math.max(0, Math.floor((expiry - now) / 1000));
+            setTimeRemaining(remaining);
+
+            if (remaining <= 0) {
+                // Reservation expired
+                setReservation(null);
+                setShowCheckout(false);
+                setSubmitMessage('Your reservation has expired. Please try again.');
+                fetchTiers();
+            }
+        };
+
+        updateTimer();
+        timerRef.current = setInterval(updateTimer, 1000);
+
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, [reservation, fetchTiers]);
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
     const handleSelectTier = (tier: TierAvailability, quantity: number) => {
         if (quantity < 0 || quantity > tier.available) return;
@@ -84,43 +143,80 @@ export default function TicketingPage() {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
+    // Reserve tickets via soft-lock
+    const handleReserve = async () => {
+        if (isReserving || selectedTiers.length === 0) return;
+
+        setIsReserving(true);
+        setSubmitMessage('');
+
+        try {
+            const sessionId = getSessionId();
+            const selected = selectedTiers[0]; // For now, handle one tier at a time
+
+            const response = await fetch('/api/concert/soft-lock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tier: selected.tier,
+                    quantity: selected.quantity,
+                    sessionId,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                setReservation({
+                    checkoutId: data.checkoutId,
+                    expiresAt: data.expiresAt,
+                    tier: selected.tier,
+                    quantity: selected.quantity,
+                });
+                setShowCheckout(true);
+            } else {
+                setSubmitMessage(data.error || 'Failed to reserve tickets');
+                if (data.retryAfter) {
+                    setSubmitMessage(`${data.error} (retry in ${data.retryAfter}s)`);
+                }
+            }
+        } catch (error) {
+            console.error('Error reserving tickets:', error);
+            setSubmitMessage('Failed to reserve tickets. Please try again.');
+        } finally {
+            setIsReserving(false);
+        }
+    };
+
+    // Complete order with checkout_id
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (isSubmitting) return;
+        if (isSubmitting || !reservation) return;
 
         setIsSubmitting(true);
         setSubmitMessage('');
 
         try {
-            const results = [];
+            const response = await fetch('/api/concert/order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    checkoutId: reservation.checkoutId,
+                    ...formData,
+                }),
+            });
 
-            for (const selected of selectedTiers) {
-                const response = await fetch('/api/concert/order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        tier: selected.tier,
-                        quantity: selected.quantity,
-                        ...formData,
-                    }),
-                });
+            const data = await response.json();
 
-                const data = await response.json();
-                results.push({ tier: selected.tier, success: response.ok, data });
-            }
-
-            const allSuccess = results.every(r => r.success);
-
-            if (allSuccess) {
+            if (response.ok && data.success) {
                 setSubmitSuccess(true);
                 setSubmitMessage('🎉 Tickets purchased successfully!');
                 setSelectedTiers([]);
+                setReservation(null);
                 fetchTiers();
             } else {
-                const errors = results.filter(r => !r.success).map(r => r.data.error).join(', ');
-                setSubmitMessage(`Error: ${errors}`);
+                setSubmitMessage(data.error || 'Failed to complete purchase');
             }
-
         } catch (error) {
             console.error('Error processing order:', error);
             setSubmitMessage('Failed to process order. Please try again.');
@@ -129,7 +225,25 @@ export default function TicketingPage() {
         }
     };
 
-
+    // Cancel reservation
+    const handleCancelReservation = async () => {
+        if (reservation) {
+            try {
+                await fetch('/api/concert/release-lock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        checkoutId: reservation.checkoutId,
+                    }),
+                });
+            } catch (e) {
+                console.error('Error releasing lock:', e);
+            }
+        }
+        setReservation(null);
+        setShowCheckout(false);
+        fetchTiers();
+    };
 
     if (loading) {
         return (
@@ -185,18 +299,39 @@ export default function TicketingPage() {
         );
     }
 
-    // Checkout view
-    if (showCheckout && selectedTiers.length > 0) {
+    // Checkout view with reservation timer
+    if (showCheckout && reservation) {
         return (
             <div className="min-h-screen p-4" style={{ backgroundColor: theme.background }}>
                 <div className="max-w-2xl mx-auto">
+                    {/* Timer Banner */}
+                    <motion.div
+                        className="mb-6 p-4 rounded-xl text-center"
+                        style={{
+                            backgroundColor: timeRemaining < 60 ? `${theme.error}30` : `${theme.accent}20`,
+                            border: `1px solid ${timeRemaining < 60 ? theme.error : theme.accent}50`,
+                        }}
+                        animate={{ scale: timeRemaining < 60 ? [1, 1.02, 1] : 1 }}
+                        transition={{ duration: 1, repeat: timeRemaining < 60 ? Infinity : 0 }}
+                    >
+                        <p className="text-sm" style={{ color: timeRemaining < 60 ? theme.error : theme.accent }}>
+                            ⏱️ Complete your purchase in
+                        </p>
+                        <p className="text-3xl font-bold" style={{ color: timeRemaining < 60 ? theme.error : theme.accent }}>
+                            {formatTime(timeRemaining)}
+                        </p>
+                        <p className="text-xs mt-1" style={{ color: theme.textMuted }}>
+                            Tickets will be released if not completed
+                        </p>
+                    </motion.div>
+
                     <div className="flex items-center justify-between mb-6">
                         <button
-                            onClick={() => setShowCheckout(false)}
+                            onClick={handleCancelReservation}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg"
                             style={{ color: theme.text, backgroundColor: 'rgba(255,255,255,0.05)' }}
                         >
-                            ← Back
+                            ← Cancel & Go Back
                         </button>
                     </div>
 
@@ -209,17 +344,15 @@ export default function TicketingPage() {
                         className="p-6 rounded-2xl mb-6"
                         style={{ backgroundColor: theme.surface, border: `1px solid ${theme.border}` }}
                     >
-                        <h2 className="font-bold mb-4" style={{ color: theme.text }}>Order Summary</h2>
-                        {selectedTiers.map(selected => (
-                            <div key={selected.tier} className="flex justify-between py-2" style={{ borderBottom: `1px solid ${theme.border}` }}>
-                                <span style={{ color: theme.text }}>
-                                    {selected.tier} × {selected.quantity}
-                                </span>
-                                <span style={{ color: theme.primary }}>
-                                    ₹{(selected.quantity * selected.price).toLocaleString()}
-                                </span>
-                            </div>
-                        ))}
+                        <h2 className="font-bold mb-4" style={{ color: theme.text }}>Reserved Tickets</h2>
+                        <div className="flex justify-between py-2" style={{ borderBottom: `1px solid ${theme.border}` }}>
+                            <span style={{ color: theme.text }}>
+                                {reservation.tier} × {reservation.quantity}
+                            </span>
+                            <span style={{ color: theme.primary }}>
+                                ₹{(reservation.quantity * (selectedTiers.find(s => s.tier === reservation.tier)?.price || 0)).toLocaleString()}
+                            </span>
+                        </div>
                         <div className="flex justify-between pt-4 mt-2">
                             <span className="font-bold text-lg" style={{ color: theme.text }}>Total</span>
                             <span className="font-bold text-2xl" style={{ color: theme.primary }}>
@@ -302,12 +435,12 @@ export default function TicketingPage() {
 
                         <motion.button
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || timeRemaining === 0}
                             className="w-full py-4 rounded-xl font-bold text-lg"
                             style={{
                                 background: theme.gradient,
                                 color: theme.text,
-                                opacity: isSubmitting ? 0.7 : 1,
+                                opacity: isSubmitting || timeRemaining === 0 ? 0.7 : 1,
                             }}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
@@ -339,6 +472,20 @@ export default function TicketingPage() {
                         CYP Concert 2026 • March 21, 2026
                     </p>
                 </div>
+
+                {/* Message Banner */}
+                {submitMessage && !showCheckout && (
+                    <div
+                        className="mb-6 p-4 rounded-xl text-center"
+                        style={{
+                            backgroundColor: `${theme.error}20`,
+                            border: `1px solid ${theme.error}30`,
+                            color: theme.error,
+                        }}
+                    >
+                        {submitMessage}
+                    </div>
+                )}
 
                 {/* Tier Cards */}
                 <div className="space-y-4 mb-8">
@@ -452,13 +599,18 @@ export default function TicketingPage() {
                                     </p>
                                 </div>
                                 <motion.button
-                                    onClick={() => setShowCheckout(true)}
+                                    onClick={handleReserve}
+                                    disabled={isReserving}
                                     className="px-8 py-3 rounded-xl font-bold"
-                                    style={{ background: theme.gradient, color: theme.text }}
+                                    style={{
+                                        background: theme.gradient,
+                                        color: theme.text,
+                                        opacity: isReserving ? 0.7 : 1,
+                                    }}
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
                                 >
-                                    Checkout →
+                                    {isReserving ? 'Reserving...' : 'Reserve Tickets →'}
                                 </motion.button>
                             </div>
                         </motion.div>
