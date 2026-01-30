@@ -6,6 +6,7 @@ import { s3, TALKS_S3_BUCKET } from "@/app/lib/s3";
 import { redirect } from 'next/navigation';
 import { getAllTalks } from "@/app/lib/talksStore";
 import { ArrowLeft } from "lucide-react";
+import { sanitizeHtml } from '@/app/lib/sanitize';
 
 // Warm Espresso Theme Colors
 const theme = {
@@ -220,7 +221,7 @@ export default async function Page({ params }: { params: Promise<{ key: string[]
           <div
             className="mt-8 prose prose-invert max-w-none"
             style={{ color: theme.text }}
-            dangerouslySetInnerHTML={{ __html: summaryHtml }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(summaryHtml) }}
           />
         ) : null}
       </main>

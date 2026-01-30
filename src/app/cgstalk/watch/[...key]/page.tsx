@@ -3,6 +3,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 import SecureVideoPlayer from "../../../components/SecureVideoPlayer";
 import NoDownload from "../../../components/NoDownload";
 import { ArrowLeft } from "lucide-react";
+import { sanitizeHtml } from '@/app/lib/sanitize';
 
 // Warm Espresso Theme Colors
 const theme = {
@@ -161,7 +162,7 @@ export default async function Page({ params }: { params: Promise<{ key: string[]
               <div
                 className="prose prose-invert max-w-none"
                 style={{ color: theme.text }}
-                dangerouslySetInnerHTML={{ __html: summaryHtml }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(summaryHtml) }}
               />
             </div>
           )}

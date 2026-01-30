@@ -21,10 +21,12 @@ const theme = {
     warning: '#f59e0b',
 };
 
-const VALID_CREDENTIALS = {
-    username: 'cyp_admin',
-    password: 'concert2026',
-};
+// Credentials are loaded from environment variables for security
+// Set CONCERT_SCAN_USERNAME and CONCERT_SCAN_PASSWORD in your environment
+const getCredentials = () => ({
+    username: process.env.NEXT_PUBLIC_CONCERT_SCAN_USERNAME || '',
+    password: process.env.NEXT_PUBLIC_CONCERT_SCAN_PASSWORD || '',
+});
 
 interface TicketInfo {
     id: string;
@@ -235,7 +237,8 @@ export default function ConcertScanPage() {
         e.preventDefault();
         setAuthError('');
 
-        if (username === VALID_CREDENTIALS.username && password === VALID_CREDENTIALS.password) {
+        const credentials = getCredentials();
+        if (username === credentials.username && password === credentials.password) {
             setIsAuthenticated(true);
             sessionStorage.setItem('scanner_auth', 'authenticated');
         } else {
