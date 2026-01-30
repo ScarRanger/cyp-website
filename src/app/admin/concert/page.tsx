@@ -76,6 +76,10 @@ export default function ConcertAdminPage() {
     const [inventoryMessage, setInventoryMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [confirmInventoryAction, setConfirmInventoryAction] = useState(false);
 
+    // Sync Redis state
+    const [syncLoading, setSyncLoading] = useState(false);
+    const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
     const fetchStats = useCallback(async () => {
         try {
             const response = await fetch('/api/concert/admin');
@@ -101,6 +105,41 @@ export default function ConcertAdminPage() {
         const interval = setInterval(fetchStats, 30000);
         return () => clearInterval(interval);
     }, [fetchStats]);
+
+    const handleSyncRedis = async () => {
+        setSyncLoading(true);
+        setSyncMessage(null);
+
+        try {
+            const response = await fetch('/api/concert/admin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'syncRedis' }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Sync failed');
+            }
+
+            if (data.synced && data.synced.length > 0) {
+                const changes = data.synced.map((s: { tier: string; before: number; after: number }) =>
+                    `${s.tier}: ${s.before} → ${s.after}`
+                ).join(', ');
+                setSyncMessage({ type: 'success', text: `Synced: ${changes}` });
+            } else {
+                setSyncMessage({ type: 'success', text: 'All tiers already in sync!' });
+            }
+            fetchStats();
+        } catch (err) {
+            setSyncMessage({ type: 'error', text: err instanceof Error ? err.message : 'Sync failed' });
+        } finally {
+            setSyncLoading(false);
+            // Clear message after 5 seconds
+            setTimeout(() => setSyncMessage(null), 5000);
+        }
+    };
 
     const handleTierConfigUpdate = async () => {
         if (!editingTier) return;
@@ -231,11 +270,25 @@ export default function ConcertAdminPage() {
                         </p>
                     </div>
                     <div className="flex items-center gap-4">
+                        {syncMessage && (
+                            <span className="text-sm" style={{ color: syncMessage.type === 'success' ? theme.success : theme.primary }}>
+                                {syncMessage.text}
+                            </span>
+                        )}
                         {lastUpdated && (
                             <span className="text-sm" style={{ color: theme.textMuted }}>
                                 Last updated: {formatDate(lastUpdated)}
                             </span>
                         )}
+                        <button
+                            onClick={handleSyncRedis}
+                            disabled={syncLoading}
+                            className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 disabled:opacity-50"
+                            style={{ backgroundColor: theme.warning, color: '#000' }}
+                            title="Recalculate Redis inventory from Supabase (available = total - sold)"
+                        >
+                            {syncLoading ? 'Syncing...' : 'Sync Redis'}
+                        </button>
                         <button
                             onClick={() => { setLoading(true); fetchStats(); }}
                             className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105"

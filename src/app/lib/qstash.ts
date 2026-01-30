@@ -55,3 +55,24 @@ export async function scheduleTicketEmail(payload: EmailJobPayload): Promise<{ m
 export function isQStashConfigured(): boolean {
     return !!(QSTASH_TOKEN && APP_URL);
 }
+
+/**
+ * Cancel a scheduled QStash message by its ID
+ * Used to cancel rollback jobs when orders are paid
+ */
+export async function cancelQStashMessage(messageId: string): Promise<boolean> {
+    if (!qstashClient) {
+        console.warn('[QStash] Cannot cancel message - client not configured');
+        return false;
+    }
+
+    try {
+        await qstashClient.messages.delete(messageId);
+        console.log(`[QStash] Successfully cancelled message: ${messageId}`);
+        return true;
+    } catch (error) {
+        // Message may have already been delivered or doesn't exist
+        console.warn(`[QStash] Failed to cancel message ${messageId}:`, error);
+        return false;
+    }
+}

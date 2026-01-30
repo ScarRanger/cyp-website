@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/app/lib/supabase';
 import { createQRPayload } from '@/app/lib/qr-signature';
-import { scheduleTicketEmail, isQStashConfigured } from '@/app/lib/qstash';
+import { scheduleTicketEmail, isQStashConfigured, cancelQStashMessage } from '@/app/lib/qstash';
 import { sendTicketEmail, type TicketInfo } from '@/app/lib/email-service';
 import { deleteReservation } from '@/app/lib/concert-redis';
 import { orderRatelimit, getClientIP } from '@/app/lib/concert-ratelimit';
@@ -179,6 +179,12 @@ export async function POST(request: NextRequest) {
                     payment_amount: price * quantity,
                 })
                 .eq('checkout_id', cid);
+
+            // Cancel the scheduled QStash rollback to prevent inventory desync
+            if (order.qstash_message_id) {
+                await cancelQStashMessage(order.qstash_message_id);
+                console.log(`[Order] Cancelled rollback job for ${cid}`);
+            }
 
             // Delete reservation from Redis
             await deleteReservation(cid);

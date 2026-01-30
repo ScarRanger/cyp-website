@@ -143,6 +143,49 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { action, tier, quantity, name, price } = body;
 
+        // Handle Redis sync action
+        if (action === 'syncRedis') {
+            const targetTier = tier?.toLowerCase();
+
+            // Get inventory from Supabase
+            const { data: tiers, error: tierError } = await supabase
+                .from('concert_ticket_inventory')
+                .select('tier, total_tickets, sold_tickets');
+
+            if (tierError) throw tierError;
+
+            const results: { tier: string; before: number; after: number; expected: number }[] = [];
+
+            for (const t of (tiers || [])) {
+                const normalizedTier = t.tier.toLowerCase();
+
+                // Skip if a specific tier was requested and this isn't it
+                if (targetTier && normalizedTier !== targetTier) continue;
+
+                const expected = (t.total_tickets || 0) - (t.sold_tickets || 0);
+                const currentRedis = await getAvailableTickets(normalizedTier);
+
+                if (currentRedis !== expected) {
+                    await initializeTierInventory(normalizedTier, expected);
+                    results.push({
+                        tier: normalizedTier,
+                        before: currentRedis,
+                        after: expected,
+                        expected,
+                    });
+                    console.log(`[ConcertAdmin] Synced ${normalizedTier}: ${currentRedis} → ${expected}`);
+                }
+            }
+
+            return NextResponse.json({
+                success: true,
+                message: results.length > 0
+                    ? `Synced ${results.length} tier(s)`
+                    : 'All tiers already in sync',
+                synced: results,
+            });
+        }
+
         // Handle tier configuration updates
         if (action === 'updateTierConfig') {
             if (!tier || !VALID_TIERS.includes(tier.toLowerCase())) {

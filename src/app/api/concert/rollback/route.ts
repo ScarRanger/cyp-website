@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         // Check order status in Supabase
         const { data: order, error: orderError } = await supabase
             .from('concert_orders')
-            .select('status')
+            .select('status, rollback_executed_at')
             .eq('checkout_id', checkout_id)
             .single();
 
@@ -61,18 +61,16 @@ export async function POST(request: NextRequest) {
             throw orderError;
         }
 
-        // If order doesn't exist or is not found, still try to release (edge case)
+        // If order doesn't exist, do NOT release tickets (prevents phantom releases)
         if (!order) {
-            console.log(`[Rollback] Order ${checkout_id} not found, releasing tickets anyway`);
-            const newCount = await releaseTickets(tier, quantity);
-            await deleteReservation(checkout_id);
+            console.warn(`[Rollback] Order ${checkout_id} not found - NO ACTION TAKEN`);
             return NextResponse.json({
-                status: 'released_no_order',
-                newAvailable: newCount,
+                status: 'no_order',
+                message: 'Order not found, no tickets released',
             });
         }
 
-        // If order is PAID, do nothing
+        // If order is PAID, do nothing - user paid successfully
         if (order.status === 'paid') {
             console.log(`[Rollback] Order ${checkout_id} already paid, no rollback needed`);
             await deleteReservation(checkout_id);
@@ -82,12 +80,30 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // If order is already expired, do nothing (already rolled back)
+        // If order is already expired, check if rollback was already executed (idempotency)
         if (order.status === 'expired') {
-            console.log(`[Rollback] Order ${checkout_id} already expired`);
+            if (order.rollback_executed_at) {
+                console.log(`[Rollback] Order ${checkout_id} already rolled back at ${order.rollback_executed_at}`);
+                return NextResponse.json({
+                    status: 'already_rolled_back',
+                    message: 'Rollback already executed',
+                });
+            }
+            // Edge case: status is expired but rollback wasn't executed
+            // This shouldn't happen but handle it gracefully
+            console.warn(`[Rollback] Order ${checkout_id} is expired but rollback not recorded`);
             return NextResponse.json({
                 status: 'already_expired',
-                message: 'Order already rolled back',
+                message: 'Order already expired',
+            });
+        }
+
+        // IDEMPOTENCY CHECK: If rollback was already executed, skip
+        if (order.rollback_executed_at) {
+            console.log(`[Rollback] Order ${checkout_id} rollback already executed, skipping`);
+            return NextResponse.json({
+                status: 'already_rolled_back',
+                message: 'Rollback already executed',
             });
         }
 
@@ -97,14 +113,16 @@ export async function POST(request: NextRequest) {
         // Release tickets back to Redis
         const newCount = await releaseTickets(tier, quantity);
 
-        // Update order status to expired
+        // Update order status to expired AND mark rollback as executed (atomic)
         const { error: updateError } = await supabase
             .from('concert_orders')
             .update({
                 status: 'expired',
                 expired_at: new Date().toISOString(),
+                rollback_executed_at: new Date().toISOString(),
             })
-            .eq('checkout_id', checkout_id);
+            .eq('checkout_id', checkout_id)
+            .is('rollback_executed_at', null); // Only update if not already rolled back
 
         if (updateError) {
             console.error('[Rollback] Error updating order status:', updateError);
