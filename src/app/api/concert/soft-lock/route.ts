@@ -4,7 +4,7 @@ import { reserveTicketsAtomic, storeReservation, getAvailableTickets } from '@/a
 import { reservationRatelimit, getClientIP } from '@/app/lib/concert-ratelimit';
 import { Client } from '@upstash/qstash';
 
-const MAX_TICKETS_PER_SESSION = 10;
+const MAX_TICKETS_PER_SESSION = 20;
 const ROLLBACK_DELAY_MINUTES = 10;
 
 // QStash client for scheduling rollback

@@ -292,7 +292,7 @@ function generateTicketEmailHtml(data: TicketEmailData): string {
           <tr>
             <td style="background-color: #1a1a2e; padding: 20px 30px; text-align: center; border-radius: 0 0 16px 16px; border: 1px solid rgba(233, 69, 96, 0.3); border-top: none;">
               <p style="color: #a0a0b0; margin: 0 0 10px 0; font-size: 14px;">
-                For queries, contact: <a href="tel:+918551098035" style="color: #e94560; text-decoration: none;">+91 8551098035</a>
+                For queries, contact: <a href="tel:+919923341074" style="color: #e94560; text-decoration: none;">+91 9923341074</a>
               </p>
               <p style="color: #666; margin: 0; font-size: 12px;">
                 Organized by Christian Youth in Power (CYP) Vasai

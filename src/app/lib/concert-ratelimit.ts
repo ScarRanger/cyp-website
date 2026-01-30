@@ -14,33 +14,33 @@ export const availabilityRatelimit = new Ratelimit({
 
 /**
  * Rate limiter for ticket reservation attempts
- * 5 requests per minute per IP
+ * 15 requests per minute per IP (allows multi-tier checkout)
  */
 export const reservationRatelimit = new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(5, '1 m'),
+    limiter: Ratelimit.slidingWindow(15, '1 m'),
     prefix: 'ratelimit:concert:reserve',
     analytics: true,
 });
 
 /**
  * Rate limiter for checkout attempts
- * 3 requests per 5 minutes per session
+ * 10 requests per 5 minutes per session (allows retries)
  */
 export const checkoutRatelimit = new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(3, '5 m'),
+    limiter: Ratelimit.slidingWindow(10, '5 m'),
     prefix: 'ratelimit:concert:checkout',
     analytics: true,
 });
 
 /**
  * Rate limiter for order submissions
- * 2 requests per 10 minutes per IP
+ * 5 requests per 10 minutes per IP (allows retries)
  */
 export const orderRatelimit = new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(2, '10 m'),
+    limiter: Ratelimit.slidingWindow(5, '10 m'),
     prefix: 'ratelimit:concert:order',
     analytics: true,
 });
