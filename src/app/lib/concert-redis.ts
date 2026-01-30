@@ -65,7 +65,7 @@ export async function getAvailableTickets(tier: string): Promise<number> {
 export async function getAllTierAvailability(): Promise<Record<string, number>> {
     try {
         // Assuming standard tiers - adjust as needed
-        const tiers = ['general', 'vip', 'premium'];
+        const tiers = ['silver', 'gold', 'diamond'];
         const keys = tiers.map(getAvailableKey);
         const values = await redis.mget<(number | null)[]>(...keys);
 

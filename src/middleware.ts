@@ -26,21 +26,21 @@ export function middleware(request: NextRequest) {
         'X-DNS-Prefetch-Control': 'on',
 
         // Permissions Policy (replaces Feature-Policy)
-        'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self), interest-cohort=()',
+        'Permissions-Policy': 'camera=(self), microphone=(), geolocation=(self), interest-cohort=()',
 
         // Content Security Policy - Balanced for functionality
         'Content-Security-Policy': [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://va.vercel-scripts.com",
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://va.vercel-scripts.com https://apis.google.com https://accounts.google.com https://*.firebaseapp.com",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
             "img-src 'self' data: blob: https: http:",
             "font-src 'self' https://fonts.gstatic.com",
             "connect-src 'self' https: wss:",
             "media-src 'self' https: blob:",
-            "frame-src 'self' https://www.youtube.com https://www.google.com",
+            "frame-src 'self' https://www.youtube.com https://www.google.com https://accounts.google.com https://*.firebaseapp.com",
             "frame-ancestors 'none'",
             "base-uri 'self'",
-            "form-action 'self'",
+            "form-action 'self' https://accounts.google.com",
         ].join('; '),
     };
 

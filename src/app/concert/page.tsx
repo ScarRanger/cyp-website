@@ -22,8 +22,8 @@ const CONCERT_DETAILS = {
     tagline: "An Evening of Praise & Worship",
     date: "Saturday, 21st March 2026",
     time: "6:00 PM Onwards",
-    venue: "GG College",
-    venueAddress: "GG College, Vasai, Maharashtra",
+    venue: "Rumao World School",
+    venueAddress: "Rumao World School, Giriz, Vasai, Maharashtra",
     description: `Join us for an unforgettable evening of worship, music, and community! 
   Experience powerful performances, soul-stirring worship sessions, and connect with 
   fellow believers in an atmosphere of praise and celebration.`,
@@ -39,8 +39,8 @@ const CONCERT_DETAILS = {
         "Special Guests",
         "Youth Choir",
     ],
-    mapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3760.8376893!2d72.81873!3d19.4163!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7a98d5ba94bdf%3A0x5d7d3a2f1b0e4c8a!2sGG%20College!5e0!3m2!1sen!2sin!4v1234567890",
-    googleMapsLink: "https://maps.google.com/?q=GG+College+Vasai",
+    mapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3763.591441272131!2d72.7853019!3d19.3868354!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7adf8cdfab48b%3A0xd23b7c3519c6ff1!2sRumao%20World%20School!5e0!3m2!1sen!2sin!4v1769755619298!5m2!1sen!2sin",
+    googleMapsLink: "https://maps.app.goo.gl/wt2GbSbStjn9KF6y8",
 };
 
 export default function ConcertPage() {
@@ -315,21 +315,28 @@ export default function ConcertPage() {
                                 <div className="p-4 rounded-xl" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
                                     <h4 className="font-bold mb-2" style={{ color: theme.accent }}>🚆 By Train</h4>
                                     <p style={{ color: theme.textMuted }}>
-                                        Take a train to Vasai Road railway station. From there, take an auto-rickshaw or taxi to Giriz (approximately 15 minutes).
+                                        Take a train to <strong>Vasai Road railway station</strong>. From there, take an auto-rickshaw or taxi to Giriz, Rumao World School (approximately 10-15 minutes).
                                     </p>
                                 </div>
 
                                 <div className="p-4 rounded-xl" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
                                     <h4 className="font-bold mb-2" style={{ color: theme.accent }}>🚗 By Car</h4>
                                     <p style={{ color: theme.textMuted }}>
-                                        From Mumbai, take NH48 towards Vasai. Follow signs to Vasai West and navigate to Giriz Road. Parking available at venue.
+                                        From Mumbai, take NH48 towards Vasai. Exit at Vasai and head towards Giriz Road. Rumao World School is located in Giriz village. Parking available at the venue.
                                     </p>
                                 </div>
 
                                 <div className="p-4 rounded-xl" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
                                     <h4 className="font-bold mb-2" style={{ color: theme.accent }}>🚌 By Bus</h4>
                                     <p style={{ color: theme.textMuted }}>
-                                        Take a ST bus to Vasai Bus Depot. Local buses and sharing autos are available to Giriz from the depot.
+                                        Take a ST bus to Vasai Bus Depot. From there, take a local bus or sharing auto towards Giriz. Ask for Rumao World School.
+                                    </p>
+                                </div>
+
+                                <div className="p-4 rounded-xl" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                                    <h4 className="font-bold mb-2" style={{ color: theme.accent }}>🛺 By Auto/Taxi</h4>
+                                    <p style={{ color: theme.textMuted }}>
+                                        From Vasai Road station, autos and taxis are readily available. Simply ask for &quot;Rumao World School, Giriz&quot; – most local drivers know the location.
                                     </p>
                                 </div>
                             </div>
