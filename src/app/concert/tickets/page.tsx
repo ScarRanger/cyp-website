@@ -7,15 +7,15 @@ import VenueMap from "./VenueMap";
 import type { TierAvailability } from "@/app/types/concert";
 
 const theme = {
-    background: '#0f0f1a',
-    surface: '#1a1a2e',
-    primary: '#e94560',
-    secondary: '#533483',
-    accent: '#f5c518',
-    text: '#ffffff',
-    textMuted: '#a0a0b0',
-    border: 'rgba(233, 69, 96, 0.3)',
-    gradient: 'linear-gradient(135deg, #e94560 0%, #533483 100%)',
+    background: '#1C1917',
+    surface: '#1C1917',
+    primary: '#FB923C',
+    secondary: '#FB923C',
+    accent: '#FB923C',
+    text: '#FAFAFA',
+    textMuted: '#a8a29e',
+    border: '#FB923C30',
+    gradient: 'linear-gradient(135deg, #FB923C 0%, #EA580C 100%)',
     success: '#22c55e',
     error: '#ef4444',
 };
@@ -606,28 +606,40 @@ export default function TicketingPage() {
                                     </div>
 
                                     {!isSoldOut && (
-                                        <div className="flex items-center gap-3">
-                                            <select
-                                                value={selected?.quantity || 0}
-                                                onChange={(e) => handleSelectTier(tier, parseInt(e.target.value))}
-                                                className="px-4 py-2 rounded-xl font-semibold outline-none cursor-pointer"
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleSelectTier(tier, Math.max(0, (selected?.quantity || 0) - 1))}
+                                                disabled={(selected?.quantity || 0) === 0}
+                                                className="w-10 h-10 rounded-xl font-bold text-xl flex items-center justify-center transition-all"
                                                 style={{
-                                                    backgroundColor: theme.surface,
-                                                    border: `1px solid ${theme.border}`,
+                                                    backgroundColor: (selected?.quantity || 0) === 0 ? 'rgba(255,255,255,0.05)' : theme.primary,
+                                                    color: (selected?.quantity || 0) === 0 ? theme.textMuted : theme.text,
+                                                    cursor: (selected?.quantity || 0) === 0 ? 'not-allowed' : 'pointer',
+                                                }}
+                                            >
+                                                −
+                                            </button>
+                                            <div
+                                                className="w-12 h-10 rounded-xl font-bold text-lg flex items-center justify-center"
+                                                style={{
+                                                    backgroundColor: 'rgba(255,255,255,0.05)',
                                                     color: theme.text,
                                                 }}
                                             >
-                                                <option value={0} style={{ backgroundColor: theme.surface, color: theme.text }}>Select</option>
-                                                {[...Array(getMaxForTier(tier))].map((_, i) => (
-                                                    <option
-                                                        key={i + 1}
-                                                        value={i + 1}
-                                                        style={{ backgroundColor: theme.surface, color: theme.text }}
-                                                    >
-                                                        {i + 1} {i === 0 ? 'Ticket' : 'Tickets'}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                {selected?.quantity || 0}
+                                            </div>
+                                            <button
+                                                onClick={() => handleSelectTier(tier, (selected?.quantity || 0) + 1)}
+                                                disabled={(selected?.quantity || 0) >= getMaxForTier(tier)}
+                                                className="w-10 h-10 rounded-xl font-bold text-xl flex items-center justify-center transition-all"
+                                                style={{
+                                                    backgroundColor: (selected?.quantity || 0) >= getMaxForTier(tier) ? 'rgba(255,255,255,0.05)' : theme.primary,
+                                                    color: (selected?.quantity || 0) >= getMaxForTier(tier) ? theme.textMuted : theme.text,
+                                                    cursor: (selected?.quantity || 0) >= getMaxForTier(tier) ? 'not-allowed' : 'pointer',
+                                                }}
+                                            >
+                                                +
+                                            </button>
                                         </div>
                                     )}
                                 </div>

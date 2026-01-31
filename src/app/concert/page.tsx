@@ -5,15 +5,15 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 
 const theme = {
-    background: '#0f0f1a',
-    surface: '#1a1a2e',
-    primary: '#e94560',
-    secondary: '#533483',
-    accent: '#f5c518',
-    text: '#ffffff',
-    textMuted: '#a0a0b0',
-    border: 'rgba(233, 69, 96, 0.3)',
-    gradient: 'linear-gradient(135deg, #e94560 0%, #533483 100%)',
+    background: '#1C1917',
+    surface: '#1C1917',
+    primary: '#FB923C',
+    secondary: '#FB923C',
+    accent: '#FB923C',
+    text: '#FAFAFA',
+    textMuted: '#a8a29e',
+    border: '#FB923C30',
+    gradient: 'linear-gradient(135deg, #FB923C 0%, #EA580C 100%)',
 };
 
 // Concert details - update these as needed
