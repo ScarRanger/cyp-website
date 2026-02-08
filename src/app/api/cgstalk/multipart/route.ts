@@ -9,7 +9,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { S3Client } from "@aws-sdk/client-s3";
 
 const region = process.env.AWS_REGION;
-const bucket = process.env.CGS_TALKS_BUCKET;
+const talksBucket = process.env.CGS_TALKS_BUCKET;
+const prophecyBucket = process.env.CGS_PROPHECY_BUCKET || "cgs-prophecy";
 
 const s3 = new S3Client({
     region,
@@ -44,12 +45,16 @@ function buildDir({ title, date }: { title: string; date?: string }) {
 
 export async function POST(req: NextRequest) {
     try {
-        if (!bucket) {
-            return NextResponse.json({ error: "CGS_TALKS_BUCKET not configured" }, { status: 500 });
-        }
-
         const body = await req.json();
         const action = body?.action as string | undefined;
+        // Default to talks if not specified, but check for "type" = "prophecy"
+        const type = body?.type as string | undefined;
+        const targetBucket = (type === "prophecy") ? prophecyBucket : talksBucket;
+
+        if (!targetBucket) {
+            return NextResponse.json({ error: "Target bucket not configured" }, { status: 500 });
+        }
+
         if (!action) return NextResponse.json({ error: "Missing action" }, { status: 400 });
 
         if (action === "create") {
@@ -64,7 +69,7 @@ export async function POST(req: NextRequest) {
             }
             const out = await s3.send(
                 new CreateMultipartUploadCommand({
-                    Bucket: bucket,
+                    Bucket: targetBucket,
                     Key: key,
                     ContentType: contentType || "application/octet-stream",
                     CacheControl: kind === "thumbnail" ? "public, max-age=31536000, immutable" : undefined,
@@ -73,8 +78,8 @@ export async function POST(req: NextRequest) {
             const uploadId = out.UploadId;
             if (!uploadId) return NextResponse.json({ error: "Failed to init multipart" }, { status: 500 });
             const mediaExt = ext;
-            const type: "audio" | "video" = ["mp4", "m4v", "mov", "webm"].includes(mediaExt) ? "video" : "audio";
-            return NextResponse.json({ uploadId, key, dir, type });
+            const mediaType: "audio" | "video" = ["mp4", "m4v", "mov", "webm"].includes(mediaExt) ? "video" : "audio";
+            return NextResponse.json({ uploadId, key, dir, type: mediaType });
         }
 
         if (action === "parts") {
@@ -92,7 +97,7 @@ export async function POST(req: NextRequest) {
             }
             const entries = await Promise.all(
                 sanitized.map(async (partNumber) => {
-                    const cmd = new UploadPartCommand({ Bucket: bucket, Key: key, UploadId: uploadId, PartNumber: partNumber });
+                    const cmd = new UploadPartCommand({ Bucket: targetBucket, Key: key, UploadId: uploadId, PartNumber: partNumber });
                     const url = await getSignedUrl(s3, cmd, { expiresIn: 60 * 60 });
                     return [partNumber, url] as const;
                 })
@@ -108,7 +113,7 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: "Missing fields" }, { status: 400 });
             }
             const input = {
-                Bucket: bucket,
+                Bucket: targetBucket,
                 Key: key as string,
                 UploadId: uploadId as string,
                 MultipartUpload: {
@@ -122,7 +127,7 @@ export async function POST(req: NextRequest) {
         if (action === "abort") {
             const { key, uploadId } = body || {};
             if (!key || !uploadId) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
-            await s3.send(new AbortMultipartUploadCommand({ Bucket: bucket, Key: key, UploadId: uploadId }));
+            await s3.send(new AbortMultipartUploadCommand({ Bucket: targetBucket, Key: key, UploadId: uploadId }));
             return NextResponse.json({ ok: true });
         }
 

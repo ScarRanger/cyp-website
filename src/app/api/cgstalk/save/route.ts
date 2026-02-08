@@ -3,7 +3,8 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { S3Client } from "@aws-sdk/client-s3";
 
 const region = process.env.AWS_REGION;
-const bucket = process.env.CGS_TALKS_BUCKET;
+const talksBucket = process.env.CGS_TALKS_BUCKET;
+const prophecyBucket = process.env.CGS_PROPHECY_BUCKET || "cgs-prophecy";
 
 const s3 = new S3Client({
     region,
@@ -21,11 +22,14 @@ function dirFromKey(key: string) {
 
 export async function POST(req: NextRequest) {
     try {
-        if (!bucket) {
-            return NextResponse.json({ error: "CGS_TALKS_BUCKET not configured" }, { status: 500 });
+        const { mediaKey, summary, type } = await req.json();
+
+        const targetBucket = (type === "prophecy") ? prophecyBucket : talksBucket;
+
+        if (!targetBucket) {
+            return NextResponse.json({ error: "Target bucket not configured" }, { status: 500 });
         }
 
-        const { mediaKey, summary } = await req.json();
         if (!mediaKey) return NextResponse.json({ error: "Missing mediaKey" }, { status: 400 });
 
         // Save summary.md if provided
@@ -34,7 +38,7 @@ export async function POST(req: NextRequest) {
             const key = `${dir}/summary.md`;
             const Body = Buffer.from(summary, "utf8");
             await s3.send(new PutObjectCommand({
-                Bucket: bucket,
+                Bucket: targetBucket,
                 Key: key,
                 Body,
                 ContentType: "text/markdown; charset=utf-8",

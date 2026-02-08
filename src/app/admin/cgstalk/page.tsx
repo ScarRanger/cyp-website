@@ -17,6 +17,7 @@ export default function AdminCGSTalksUploadPage() {
     const [mediaFile, setMediaFile] = useState<File | null>(null);
     const [thumbFile, setThumbFile] = useState<File | null>(null);
     const [summary, setSummary] = useState<string>("");
+    const [uploadType, setUploadType] = useState<"talk" | "prophecy">("talk");
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | undefined>(undefined);
     const [error, setError] = useState<string | undefined>(undefined);
@@ -37,7 +38,7 @@ export default function AdminCGSTalksUploadPage() {
             const res = await fetch("/api/cgstalk/multipart", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "parts", key, uploadId, partNumbers: chunk }),
+                body: JSON.stringify({ action: "parts", key, uploadId, partNumbers: chunk, type: uploadType }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data?.error || "Failed to get part URLs");
@@ -58,6 +59,7 @@ export default function AdminCGSTalksUploadPage() {
                 title,
                 date: date || undefined,
                 kind,
+                type: uploadType,
             }),
         });
         const created = await createRes.json().catch(() => ({}));
@@ -72,9 +74,9 @@ export default function AdminCGSTalksUploadPage() {
         const perPartLoaded: Record<number, number> = {};
         const partsOut: Array<{ PartNumber: number; ETag: string }> = [];
 
-        let currentConcurrency = 2;
+        let currentConcurrency = 1;
         let successCount = 0;
-        const MAX_CONCURRENCY = 6;
+        const MAX_CONCURRENCY = 4;
 
         const adjustConcurrency = (success: boolean) => {
             if (success) {
@@ -102,7 +104,8 @@ export default function AdminCGSTalksUploadPage() {
                     const etag = await new Promise<string>((resolve, reject) => {
                         const xhr = new XMLHttpRequest();
                         xhr.open("PUT", url);
-                        xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+                        // Do NOT set Content-Type for parts, as it can cause signature mismatches 
+                        // and isn't needed for partial uploads.
                         xhr.timeout = Math.max(120000, (blob.size / 1024 / 1024) * 2000) * (attempt + 1);
 
                         xhr.upload.onprogress = (e) => {
@@ -178,7 +181,7 @@ export default function AdminCGSTalksUploadPage() {
         const completeRes = await fetch("/api/cgstalk/multipart", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "complete", key, uploadId, parts: partsOut }),
+            body: JSON.stringify({ action: "complete", key, uploadId, parts: partsOut, type: uploadType }),
         });
         const completed = await completeRes.json().catch(() => ({}));
         if (!completeRes.ok) throw new Error(completed?.error || "Failed to complete upload");
@@ -206,7 +209,7 @@ export default function AdminCGSTalksUploadPage() {
                 const saveRes = await fetch("/api/cgstalk/save", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ mediaKey: mediaOut.key, summary }),
+                    body: JSON.stringify({ mediaKey: mediaOut.key, summary, type: uploadType }),
                 });
                 if (!saveRes.ok) {
                     const data = await saveRes.json().catch(() => ({}));
@@ -245,6 +248,34 @@ export default function AdminCGSTalksUploadPage() {
                         </div>
 
                         <form onSubmit={onSubmit} className="p-6 space-y-6">
+                            <div className="rounded-lg border border-[#FB923C]/30 p-4 bg-white/5">
+                                <div className="mb-3 text-sm font-medium text-[#FAFAFA]/90">Upload Target</div>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="uploadType"
+                                            value="talk"
+                                            checked={uploadType === "talk"}
+                                            onChange={() => setUploadType("talk")}
+                                            className="accent-[#FB923C]"
+                                        />
+                                        <span className="text-[#FAFAFA]">CGS Talk</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="uploadType"
+                                            value="prophecy"
+                                            checked={uploadType === "prophecy"}
+                                            onChange={() => setUploadType("prophecy")}
+                                            className="accent-[#FB923C]"
+                                        />
+                                        <span className="text-[#FAFAFA]">CGS Prophecy</span>
+                                    </label>
+                                </div>
+                            </div>
+
                             <div className="rounded-lg border border-[#FB923C]/30 p-4 bg-white/5">
                                 <div className="mb-3 text-sm font-medium text-[#FAFAFA]/90">Details</div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
